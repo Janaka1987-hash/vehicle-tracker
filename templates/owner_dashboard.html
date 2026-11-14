@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ප්‍රධාන පාලක පුවරුව - Owner Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f7f6; text-align: center; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #007bff; }
+        .welcome-box { background: #e2f0d9; color: #385723; padding: 15px; border-radius: 5px; font-weight: bold; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px; }
+        th { background: #343a40; color: white; }
+        .active { color: green; font-weight: bold; }
+        .inactive { color: red; font-weight: bold; }
+        .owner-role { color: #d9534f; font-weight: bold; }
+        .btn-action { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-decoration: none; font-size: 12px; display: inline-block; margin: 2px; }
+        .btn-deactivate { background: #ffc107; color: black; }
+        .btn-activate { background: #28a745; color: white; }
+        .btn-edit { background: #007bff; color: white; }
+        .btn-edit:hover { background: #0056b3; }
+        .btn-delete { background: #dc3545; color: white; }
+        .btn-delete:hover { background: #c82333; }
+        a.logout { display: inline-block; margin-top: 20px; background: #6c757d; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none; font-weight: bold; }
+        a.receipt-link { color: #007bff; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>👑 ප්‍රධාන පාලක පුවරුව (Owner Dashboard)</h2>
+        <div class="welcome-box">
+            ආයුබෝවන් ප්‍රධානියා (ජනක), ඔබට මෙහිදී පරිශීලකයන්ගේ විස්තර Edit කිරීමට, Active/Deactivate කිරීමට සහ Delete කිරීමට හැකියාව ඇත.
+        </div>
+        
+        <h3>පද්ධතියේ ලියාපදිංචි සියලුම පරිශීලකයන්</h3>
+        <table>
+            <tr>
+                <th>පරිශීලක නම (Username)</th>
+                <th>මුරපදය (Password)</th>
+                <th>භූමිකාව (Role)</th>
+                <th>වාහන කෝඩ් එක</th>
+                <th>තත්ත්වය (Status)</th>
+                <th>රිසිට්පත</th>
+                <th>පාලනය (Actions)</th>
+            </tr>
+            {% for user in users %}
+            <tr>
+                <td><b>{{ user[1] }}</b></td>
+                <td><code>{{ user[2] }}</code></td>
+                <td>
+                    {% if user[3] == 'owner' %}
+                        <span class="owner-role">👑 Owner</span>
+                    {% elif user[3] == 'driver' %}
+                        🚗 Driver
+                    {% else %}
+                        passenger
+                    {% endif %}
+                </td>
+                <td>{{ user[4] if user[4] else '-' }}</td>
+                <td>
+                    {% if user[5] == 1 %}
+                        <span class="active">Active</span>
+                    {% else %}
+                        <span class="inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user[6] and user[6] != 'Owner Account (Free)' %}
+                        <a class="receipt-link" href="{{ url_for('static', filename='uploads/' + user[6]) }}" target="_blank">📄 බලන්න</a>
+                    {% else %}
+                        <span style="color: gray;">නැත</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user[3] != 'owner' %}
+                        {% if user[5] == 1 %}
+                            <a href="{{ url_for('toggle_status', user_id=user[0]) }}" class="btn-action btn-deactivate">Deactivate</a>
+                        {% else %}
+                            <a href="{{ url_for('toggle_status', user_id=user[0]) }}" class="btn-action btn-activate">Activate</a>
+                        {% endif %}
+                        <a href="{{ url_for('edit_user', user_id=user[0]) }}" class="btn-action btn-edit">Edit</a>
+                        <a href="{{ url_for('delete_user', user_id=user[0]) }}" class="btn-action btn-delete" onclick="return confirm('මෙම පරිශීලකයා සම්පූර්ණයෙන්ම ඩීලීට් කිරීමට අවශ්‍යමද?');">Delete</a>
+                    {% else %}
+                        <span style="color: gray;">Master Account</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <a href="/logout" class="logout">පද්ධතියෙන් ඉවත් වන්න (Logout)</a>
+    </div>
+</body>
+</html>

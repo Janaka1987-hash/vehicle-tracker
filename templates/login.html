@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ඇතුළු වීම - Live Vehicle Tracking System</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #eef2f3; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .main-container { display: flex; background: white; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); width: 950px; max-width: 95%; overflow: hidden; flex-wrap: wrap; }
+        
+        /* වම්පස විශේෂාංග විස්තරය */
+        .info-panel { flex: 1.2; background: #e8f5e9; padding: 40px; text-align: left; min-width: 320px; border-right: 1px solid #ddd; }
+        .info-panel h2 { color: #2e7d32; margin-top: 0; font-size: 24px; }
+        .info-panel p { font-size: 16px; color: #333; font-weight: bold; }
+        .info-panel ul { padding-left: 20px; line-height: 1.9; color: #222; font-size: 15px; }
+        .info-panel li { margin-bottom: 12px; }
+
+        /* දකුණුපස ලොගින් කාඩ් එක */
+        .login-card { flex: 1; padding: 40px; display: flex; flex-direction: column; justify-content: center; min-width: 280px; text-align: center; }
+        .login-card h2 { color: #333; font-size: 22px; margin-bottom: 25px; line-height: 1.4; }
+        input, button { width: 100%; padding: 14px; margin: 12px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { background: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; font-size: 18px; }
+        button:hover { background: #218838; }
+        p.reg-text { font-size: 16px; margin-top: 20px; }
+        a { color: #007bff; text-decoration: none; font-weight: bold; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- විශේෂාංග විස්තර පුවරුව -->
+        <div class="info-panel">
+            <h2>🚐 මාර්ගගත මගී ලුහුබැඳීමේ පද්ධතිය</h2>
+            <p>රියදුරන්ට සහ මගීන්ට ලැබෙන විශේෂ පහසුකම්:</p>
+            <ul>
+                <li>📍 <b>සජීවී ලුහුබැඳීම (Live Tracking):</b> රියදුරු සහ මගියා අතර ගමන තත්‍ය කාලීනව සිතියම මත බලාගත හැක.</li>
+                <li>⏰ <b>ස්වයංක්‍රීය ETA ගණනය:</b> වාහනය පැමිණීමට ඇති දුර (km) සහ ගතවන කාලය (Minutes) පැහැදිලිව දැනගත හැක.</li>
+                <li>🔊 <b>ප්‍රොක්සිමිටි ඇලාම් (Proximity Alarm):</b> වාහනය මගියා ළඟටම පැමිණි විට ස්වයංක්‍රීයව ශබ්දයෙන් දැනුවත් කරයි.</li>
+                <li>🟢 <b>පැමිණීම ලකුණු කිරීම (Attendance):</b> මගීන්ට අද දින ගමනට එකතු වන බව (Present/Absent) රියදුරුගේ ලැයිස්තුවටම දැන්විය හැක.</li>
+                <li>👑 <b>පාලක පද්ධතිය:</b> ගිණුම් කළමනාකරණය සහ ගෙවීම් රිසිට්පත් පරීක්ෂා කිරීමේ පහසුකම.</li>
+            </ul>
+        </div>
+
+        <!-- ලොගින් වන කොටස -->
+        <div class="login-card">
+            <h2>Login to the System<br><span style="font-size: 18px; color: #666;">පද්ධතියට ලොග් වන්න</span></h2>
+            <form action="/login" method="POST">
+                <input type="text" name="username" placeholder="පරිශීලක නාමය (Username)" required>
+                <input type="password" name="password" placeholder="මුරපදය (Password)" required>
+                <button type="submit">ඇතුළු වන්න (Login)</button>
+            </form>
+            <p class="reg-text">ගිණුමක් නැද්ද? <a href="/register">ලියාපදිංචි වන්න (Register)</a></p>
+        </div>
+    </div>
+</body>
+</html>

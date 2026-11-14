@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ගිණුම සක්‍රීය කිරීම - Subscription Payment</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f7f6; text-align: center; }
+        .container { max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #333; }
+        .price-box { background: #e2f0d9; color: #385723; padding: 15px; font-size: 20px; font-weight: bold; border-radius: 5px; margin: 20px 0; }
+        .bank-details { background: #fff3cd; padding: 15px; border-radius: 5px; text-align: left; margin-bottom: 20px; font-size: 14px; color: #856404; line-height: 1.6; border: 1px solid #ffeeba; }
+        .upload-box { background: #e9ecef; padding: 20px; border-radius: 5px; margin-bottom: 20px; text-align: left; border: 2px dashed #6c757d; }
+        form { display: flex; flex-direction: column; gap: 15px; }
+        input[type="file"] { padding: 10px; background: white; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; font-size: 14px; }
+        button { background: #28a745; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; }
+        button:hover { background: #218838; }
+        a.logout { display: inline-block; margin-top: 15px; color: #dc3545; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>මාසික ගිණුම සක්‍රීය කිරීම</h2>
+        <p>ආයුබෝවන් <b>{{ username }}</b>, යෙදුම අඛණ්ඩව භාවිත කිරීමට කරුණාකර පහත ගිණුමට අදාළ මාසික ගාස්තුව බැංකුගත කර එහි රිසිට්පත (Receipt) අප්ලෝඩ් කරන්න.</p>
+        
+        <div class="price-box">
+            ගෙවිය යුතු මාසික ගාස්තුව: රු. {{ fee }}.00 /=
+        </div>
+
+        <div class="bank-details">
+            <strong>බැංකු විස්තර (Bank Details):</strong><br>
+            • බැංකුව: <strong>NSB (National Savings Bank)</strong><br>
+            • ගිණුම් අංකය: <strong>100850422975</strong><br>
+            • ගිණුම් හිමියා: <strong>S P G J Priyashantha</strong>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            <div class="upload-box">
+                <label style="font-weight: bold; display: block; margin-bottom: 8px; color: #333;">ගෙවීම් රිසිට්පත (Receipt Image/PDF) තෝරන්න:</label>
+                <input type="file" name="receipt" accept="image/*,application/pdf" required>
+            </div>
+            <button type="submit">රිසිට්පත යවා ගිණුම ස්වයංක්‍රීයව සක්‍රීය කරන්න</button>
+        </form>
+
+        <a href="/logout" class="logout">ඉවත් වන්න (Logout)</a>
+    </div>
+</body>
+</html>

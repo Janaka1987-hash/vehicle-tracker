@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>මගියාගේ පිටුව - Passenger Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+        header { background: #28a745; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; padding-left: 20px; padding-right: 20px; }
+        #map { height: 68vh; width: 100%; }
+        .status { padding: 12px; background: #fff3cd; font-weight: bold; color: #856404; font-size: 15px; }
+        .panel { background: #e9ecef; padding: 10px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .btn-present { background: #28a745; color: white; border: none; padding: 8px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .btn-absent { background: #dc3545; color: white; border: none; padding: 8px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .btn-stop-alarm { background: #ffc107; color: #000; border: none; padding: 8px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; display: none; }
+        a.logout { color: white; background: #dc3545; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <h3>ආයුබෝවන්, {{ username }} (මගී - කෝඩ්: {{ vehicle_code }})</h3>
+        <a href="/logout" class="logout">ඉවත් වන්න</a>
+    </header>
+
+    <!-- Present / Absent සහ Stop Alarm පැනලය -->
+    <div class="panel">
+        <span>අද ගමනට:</span>
+        <button class="btn-present" onclick="markAttendance('Present')">🟢 Present (පැමිණේ)</button>
+        <button class="btn-absent" onclick="markAttendance('Absent')">🔴 Absent (පැමිණෙන්නේ නැත)</button>
+        <!-- ඇලාම් එක නැවැත්වීමට බොත්තම -->
+        <button class="btn-stop-alarm" id="stopAlarmBtn" onclick="stopAlarm()">🔇 ඇලාම් එක නවත්වන්න</button>
+    </div>
+
+    <div class="status" id="status">ඔබේ ලොකේෂන් එක රියදුරු වෙත යැවීම ආරම්භ කරමින් පවතී...</div>
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <!-- Socket.IO JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    
+    <script>
+        const socket = io();
+        let map = L.map('map').setView([7.8731, 80.7718], 13);
+        let myMarker, driverMarker;
+        let myLat = 0, myLng = 0;
+        let driverLat = null, driverLng = null;
+        let myVehicleCode = "{{ vehicle_code }}";
+        let alarmPlayed = false;
+        let routingControl = null;
+
+        let audioCtx = null;
+        let alarmInterval = null;
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+        socket.on('connect', () => {
+            socket.emit('join', { vehicle_code: myVehicleCode });
+        });
+
+        function markAttendance(status) {
+            socket.emit('update_attendance', {
+                username: "{{ username }}",
+                vehicle_code: myVehicleCode,
+                status: status
+            });
+            
+            if(status === 'Present') {
+                alert("ඔබ අද ගමනට එකතු වන බව (Present) ලකුණු කරන ලදී!");
+            } else {
+                alert("ඔබ අද ගමනට පැමිණෙන්නේ නැති බව (Absent) ලකුණු කරන ලදී.");
+            }
+        }
+
+        // ජීපීඑස් ලොකේෂන් ලබා ගැනීම (Background වලදීත් ක්‍රියාත්මක වීමට සකසා ඇත)
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(position => {
+                myLat = position.coords.latitude;
+                myLng = position.coords.longitude;
+
+                if (!myMarker) {
+                    myMarker = L.marker([myLat, myLng]).addTo(map).bindPopup("ඔබ සිටින තැන").openPopup();
+                } else {
+                    myMarker.setLatLng([myLat, myLng]);
+                }
+
+                updateRouting();
+
+                socket.emit('update_location', { 
+                    username: "{{ username }}", 
+                    role: "passenger", 
+                    vehicle_code: myVehicleCode,
+                    lat: myLat, 
+                    lng: myLng 
+                });
+            }, err => {
+                document.getElementById('status').innerText = "කරුණාකර ඔබේ දුරකථනයේ Location (GPS) සක්‍රීය කරන්න!";
+            }, { 
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 10000 
+            });
+        }
+
+        // Web Audio API හරහා බීප් ඇලාම් ශබ්දය සැකසීම
+        function playAlarm() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (alarmInterval) return; // දැනටමත් පවතී නම් නැවත ආරම්භ නොකරයි
+
+            alarmInterval = setInterval(() => {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                let osc = audioCtx.createOscillator();
+                let gainNode = audioCtx.createGain();
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }, 500);
+            
+            // ඇලාම් එක වාදනය වන විට "ඇලාම් එක නවත්වන්න" බට්න් එක පෙන්වීම
+            document.getElementById('stopAlarmBtn').style.display = 'inline-block';
+        }
+
+        function stopAlarm() {
+            if (alarmInterval) {
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+            document.getElementById('stopAlarmBtn').style.display = 'none';
+        }
+
+        socket.on('broadcast_location', (data) => {
+            if (data.role === 'driver' && data.vehicle_code === myVehicleCode) {
+                driverLat = data.lat;
+                driverLng = data.lng;
+
+                if (!driverMarker) {
+                    driverMarker = L.marker([driverLat, driverLng]).addTo(map).bindPopup("වාහනය පැමිණෙමින් තිබේ: " + data.username);
+                } else {
+                    driverMarker.setLatLng([driverLat, driverLng]);
+                }
+
+                if (myLat !== 0 && myLng !== 0) {
+                    let distance = getDistanceFromLatLonInMeters(myLat, myLng, driverLat, driverLng);
+                    updateRouting();
+
+                    // මීටර් 500ක් හෝ එයට අඩු දුරකට පැමිණි විට
+                    if (distance <= 500) {
+                        document.getElementById('status').style.background = '#f8d7da';
+                        document.getElementById('status').style.color = '#721c24';
+                        
+                        if (!alarmPlayed) {
+                            playAlarm();
+                            alert("අවධානයයි! ඔබේ වාහනය ඔබ ළඟටම පැමිණෙමින් තිබේ!");
+                            alarmPlayed = true;
+                        }
+                    } else {
+                        if (distance > 600) {
+                            alarmPlayed = false;
+                        }
+                    }
+                }
+            }
+        });
+
+        function updateRouting() {
+            if (myLat !== 0 && myLng !== 0 && driverLat !== null && driverLng !== null) {
+                if (!routingControl) {
+                    routingControl = L.Routing.control({
+                        waypoints: [
+                            L.latLng(driverLat, driverLng),
+                            L.latLng(myLat, myLng)
+                        ],
+                        routeWhileDragging: false,
+                        addWaypoints: false,
+                        draggableWaypoints: false,
+                        fitSelectedRoutes: false,
+                        show: false
+                    }).addTo(map);
+
+                    routingControl.on('routesfound', function(e) {
+                        let routes = e.routes;
+                        let summary = routes[0].summary;
+                        
+                        let distanceInKm = (summary.totalDistance / 1000).toFixed(1);
+                        let timeInMinutes = Math.round(summary.totalTime / 60);
+
+                        let currentStatusText = document.getElementById('status').innerText;
+                        if (!currentStatusText.includes("අවධානයයි")) {
+                            document.getElementById('status').innerText = 
+                                `වාහනය ඔබට ඇති දුර: ${distanceInKm} km | පැමිණීමට ගතවන කාලය (ETA): විනාඩි ${timeInMinutes} යි`;
+                        }
+                    });
+
+                } else {
+                    routingControl.setWaypoints([
+                        L.latLng(driverLat, driverLng),
+                        L.latLng(myLat, myLng)
+                    ]);
+                }
+            }
+        }
+
+        function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+            let R = 6371000;
+            let dLat = deg2rad(lat2 - lat1);
+            let dLon = deg2rad(lon2 - lon1);
+            let a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function deg2rad(deg) { return deg * (Math.PI / 180); }
+    </script>
+</body>
+</html>

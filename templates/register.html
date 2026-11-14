@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ලියාපදිංචි වීම - Register</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 300px; text-align: center; }
+        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #28a745; color: white; border: none; padding: 10px; width: 100%; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #218838; }
+        a { color: #007bff; text-decoration: none; display: block; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>ලියාපදිංචි වන්න</h2>
+        <form method="POST">
+            <input type="text" name="username" placeholder="භාවිතා කරන නම (Username)" required>
+            <input type="password" name="password" placeholder="මුරපදය (Password)" required>
+            
+            <select name="role" id="role" onchange="toggleVehicleField()" required>
+                <option value="">-- භූමිකාව (Role) තෝරන්න --</option>
+                <option value="driver">රියදුරු (Driver)</option>
+                <option value="passenger">මගියා (Passenger)</option>
+            </select>
+
+            <!-- වාහන කෝඩ් එක ඇතුළත් කරන කොටස -->
+            <input type="text" name="vehicle_code" id="vehicle_code" placeholder="වාහන අංකය / කෝඩ් එක (උදා: WP-CAB-1234)" required>
+
+            <button type="submit">ලියාපදිංචි වන්න</button>
+        </form>
+        <a href="/login">ஏற்கனவே ගිණුමක් තිබේද? ඇතුළු වන්න (Login)</a>
+    </div>
+
+    <script>
+        function toggleVehicleField() {
+            let role = document.getElementById('role').value;
+            let field = document.getElementById('vehicle_code');
+            if(role === 'driver') {
+                field.placeholder = "ඔබේ වාහන අංකය / කෝඩ් එක දෙන්න";
+            } else if(role === 'passenger') {
+                field.placeholder = "ඔබ නඟින වෑන් එකේ කෝඩ් එක දෙන්න";
+            }
+        }
+    </script>
+</body>
+</html>

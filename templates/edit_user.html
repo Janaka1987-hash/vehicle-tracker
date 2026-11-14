@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>පරිශීලක විස්තර වෙනස් කිරීම - Edit User</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 40px; background: #f4f7f6; text-align: center; }
+        .container { max-width: 450px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: left; }
+        h2 { color: #007bff; text-align: center; }
+        label { font-weight: bold; display: block; margin-top: 15px; color: #333; }
+        input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #28a745; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 20px; }
+        button:hover { background: #218838; }
+        a.back { display: block; text-align: center; margin-top: 15px; color: #dc3545; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>✏️ පරිශීලක විස්තර වෙනස් කරන්න</h2>
+        <form method="POST">
+            <label>యූසර්නෙම් (Username):</label>
+            <input type="text" name="username" value="{{ user[1] }}" required>
+
+            <label>මුරපදය (Password):</label>
+            <input type="text" name="password" value="{{ user[2] }}" required>
+
+            <label>වාහන කෝඩ් එක (Vehicle Code):</label>
+            <input type="text" name="vehicle_code" value="{{ user[4] }}">
+
+            <button type="submit">වෙනස්කම් සුරකින්න (Update)</button>
+        </form>
+        <a href="/owner_dashboard" class="back">← ආපසු යන්න</a>
+    </div>
+</body>
+</html>

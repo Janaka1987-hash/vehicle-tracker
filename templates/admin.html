@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>පරිපාලක පැනලය - Admin Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f7f6; text-align: center; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px; }
+        th { background: #007bff; color: white; }
+        .active { color: green; font-weight: bold; }
+        .inactive { color: red; font-weight: bold; }
+        .btn-toggle { padding: 5px 10px; background: #ffc107; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-decoration: none; color: black; }
+        .btn-toggle:hover { background: #e0a800; }
+        a.receipt-link { color: #007bff; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🛠️ පරිපාලක පැනලය (Admin Panel) - ගෙවීම් සහ ගිණුම් පාලනය</h2>
+        <p>පරිශීලකයන් අප්ලෝඩ් කළ රිසිට්පත් පරීක්ෂා කර ගිණුම් සක්‍රීය කරන්න.</p>
+        
+        <table>
+            <tr>
+                <th>භාවිතා කරන්නා (Username)</th>
+                <th>භූමිකාව (Role)</th>
+                <th>වාහන කෝඩ් එක</th>
+                <th>ගිණුම් තත්ත්වය</th>
+                <th>රිසිට්පත (Receipt)</th>
+                <th>ක්‍රියාව (Action)</th>
+            </tr>
+            {% for user in users %}
+            <tr>
+                <td><b>{{ user[1] }}</b></td>
+                <td>{{ user[2] }}</td>
+                <td>{{ user[3] if user[3] else '-' }}</td>
+                <td>
+                    {% if user[4] == 1 %}
+                        <span class="active">Active (ක්‍රියාරීයි)</span>
+                    {% else %}
+                        <span class="inactive">Inactive (අක්‍රීයයි)</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user[5] %}
+                        <a class="receipt-link" href="{{ url_for('static', filename='uploads/' + user[5]) }}" target="_blank">📄 රිසිට්පත බලන්න</a>
+                    {% else %}
+                        <span style="color: gray;">අප්ලෝඩ් කර නැත</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('toggle_status', user_id=user[0]) }}" class="btn-toggle">
+                        {% if user[4] == 1 %} අක්‍රීය කරන්න {% else %} සක්‍රීය කරන්න {% endif %}
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <br>
+        <a href="/login" style="color: #dc3545; font-weight: bold; text-decoration: none;">← ලොගින් පිටුවට යන්න</a>
+    </div>
+</body>
+</html>
