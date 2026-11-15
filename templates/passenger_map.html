@@ -40,7 +40,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     
     <script>
-        const socket = io();
+        const socket = io({ transports: ['websocket', 'polling'] });
         let map = L.map('map').setView([7.8731, 80.7718], 13);
         let driverMarker;
         let myVehicleCode = "{{ vehicle_code }}";
@@ -48,11 +48,10 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
         socket.on('connect', () => {
-            console.log("Connected to server!");
+            console.log("Connected to server, joining room:", myVehicleCode);
             socket.emit('join', { vehicle_code: myVehicleCode });
         });
 
-        // මගියාගේ පැමිණීමේ තත්ත්වය රියදුරු වෙත යැවීම
         function sendAttendance(status) {
             socket.emit('update_attendance', {
                 username: "{{ username }}",
@@ -62,12 +61,11 @@
             alert("ඔබේ පැමිණීමේ තත්ත්වය රියදුරු වෙත යවන ලදී: " + status);
         }
 
-        // රියදුරුගෙන් එන සජීවී ලොකේෂන් එක ලබාගෙන සිතියම මත පෙන්වීම
         socket.on('broadcast_location', (data) => {
-            console.log("Location received:", data);
-            if (data.role === 'driver') {
-                let lat = data.lat;
-                let lng = data.lng;
+            console.log("Location data received:", data);
+            if (data.lat && data.lng) {
+                let lat = parseFloat(data.lat);
+                let lng = parseFloat(data.lng);
 
                 if (!driverMarker) {
                     driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("වාහනය (රියදුරු: " + data.username + ")").openPopup();
@@ -75,7 +73,7 @@
                     driverMarker.setLatLng([lat, lng]);
                 }
                 map.setView([lat, lng], 16);
-                document.getElementById('status').innerText = "රියදුරුගේ සජීවී ලොකේෂන් එක ලැබෙමින් පවතී...";
+                document.getElementById('status').innerText = "රියදුරුගේ සජීවී ලොකේෂන් එක ලැබෙමින් පවතී: " + lat.toFixed(4) + ", " + lng.toFixed(4);
             }
         });
     </script>
