@@ -6,11 +6,13 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+# SocketIO සමඟ eventlet async_mode නිවැරදිව සම්බන්ධ කිරීම
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Database එක සකස් කරගැනීම සහ ජනක මහතාගේ Master Account එක ස්වයංක්‍රීයව සෑදීම
+# Database එක සකස් කරගැනීම සහ Master Account එක ස්වයංක්‍රීයව සෑදීම
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -80,7 +82,7 @@ def login():
             
             if user[3] == 'owner':
                 return redirect(url_for('owner_dashboard'))
-            elif user[5] == 1:  # ගිණුම Active කර ඇත්නම් කෙලින්ම index වෙත ය냅
+            elif user[5] == 1:
                 return redirect(url_for('index'))
             else:
                 return redirect(url_for('payment'))
@@ -91,7 +93,6 @@ def login():
         return redirect(url_for('index'))
             
     return render_template('login.html')
-
 
 @app.route('/owner_dashboard')
 def owner_dashboard():
@@ -242,8 +243,6 @@ def handle_attendance(data):
         'username': username,
         'status': status
     }, room=vehicle_code)
-
-import os
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
