@@ -8,8 +8,7 @@ app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
 # SocketIO සමඟ eventlet async_mode නිවැරදිව සම්බන්ධ කිරීම
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
-
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Database එක සකස් කරගැනීම සහ Master Account එක ස්වයංක්‍රීයව සෑදීම
