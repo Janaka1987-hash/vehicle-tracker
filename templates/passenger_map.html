@@ -48,6 +48,7 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
         socket.on('connect', () => {
+            console.log("Connected to server!");
             socket.emit('join', { vehicle_code: myVehicleCode });
         });
 
@@ -63,6 +64,7 @@
 
         // රියදුරුගෙන් එන සජීවී ලොකේෂන් එක ලබාගෙන සිතියම මත පෙන්වීම
         socket.on('broadcast_location', (data) => {
+            console.log("Location received:", data);
             if (data.role === 'driver') {
                 let lat = data.lat;
                 let lng = data.lng;
@@ -72,7 +74,7 @@
                 } else {
                     driverMarker.setLatLng([lat, lng]);
                 }
-                map.setView([lat, lng], 15);
+                map.setView([lat, lng], 16);
                 document.getElementById('status').innerText = "රියදුරුගේ සජීවී ලොකේෂන් එක ලැබෙමින් පවතී...";
             }
         });
