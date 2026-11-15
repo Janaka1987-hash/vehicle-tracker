@@ -226,22 +226,20 @@ def on_join(data):
     vehicle_code = data.get('vehicle_code')
     if vehicle_code:
         join_room(vehicle_code)
+        print(f"User joined room: {vehicle_code}")
 
 @socketio.on('update_location')
 def handle_location(data):
     vehicle_code = data.get('vehicle_code')
     if vehicle_code:
-        emit('broadcast_location', data, room=vehicle_code, include_self=False)
+        # රියදුරුගෙන් එන ලොකේෂන් ඩේටා එම වාහන කෝඩ් එකේ සිටින මගීන්ට විකාශය කිරීම
+        emit('broadcast_location', data, room=vehicle_code)
 
 @socketio.on('update_attendance')
 def handle_attendance(data):
     vehicle_code = data.get('vehicle_code')
-    username = data.get('username')
-    status = data.get('status')
-    emit('broadcast_attendance', {
-        'username': username,
-        'status': status
-    }, room=vehicle_code)
+    if vehicle_code:
+        emit('broadcast_attendance', data, room=vehicle_code)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
