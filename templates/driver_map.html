@@ -10,10 +10,10 @@
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
         header { background: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; padding-left: 20px; padding-right: 20px; }
         #map { height: 68vh; width: 100%; }
-        .status { padding: 12px; background: #d1ecf1; font-weight: bold; color: #0c5460; font-size: 15px; }
+        .status { padding: 12px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 15px; }
         .panel { background: #e9ecef; padding: 10px; display: flex; justify-content: center; gap: 15px; align-items: center; flex-wrap: wrap; font-weight: bold; }
         a.logout { color: white; background: #dc3545; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
-        .attendance-box { background: white; padding: 5px 15px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+        .badge { padding: 5px 10px; border-radius: 4px; color: white; background: #6c757d; }
     </style>
 </head>
 <body>
@@ -22,13 +22,13 @@
         <a href="/logout" class="logout">ඉවත් වන්න</a>
     </header>
 
-    <!-- මගීන්ගේ පැමිණීමේ තත්ත්වය පෙන්වන පැනලය -->
+    <!-- මගියාගේ පැමිණීම පෙන්වන පැනලය -->
     <div class="panel">
-        <span>මගීන්ගේ පැමිණීම:</span>
-        <div class="attendance-box" id="attendanceStatus">තවම තොරතුරු ලැබී නැත</div>
+        <span>මගියාගේ පැමිණීමේ තත්ත්වය:</span>
+        <span id="attendance-status" class="badge">තවමත් ලැබී නැත</span>
     </div>
 
-    <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක මගීන් වෙත යැවීම ආරම්භ කරමින් පවතී...</div>
+    <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක ලබා ගනිමින් පවතී...</div>
     <div id="map"></div>
 
     <!-- Leaflet JS -->
@@ -37,7 +37,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     
     <script>
-        const socket = io();
+        const socket = io({ transports: ['websocket', 'polling'] });
         let map = L.map('map').setView([7.8731, 80.7718], 13);
         let myMarker;
         let myVehicleCode = "{{ vehicle_code }}";
@@ -45,45 +45,46 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
         socket.on('connect', () => {
-            console.log("Connected to server!");
+            console.log("Connected to server, joining room:", myVehicleCode);
             socket.emit('join', { vehicle_code: myVehicleCode });
         });
 
-        // රියදුරුගේ ජීපීඑස් ලොකේෂන් ලබාගෙන මගීන් වෙත ඊමිට් කිරීම
+        // රියදුරුගේ ජීපීඑස් ලොකේෂන් එක සජීවීව මගියා වෙත යැවීම
         if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(position => {
+            navigator.geolocation.watchPosition((position) => {
                 let lat = position.coords.latitude;
                 let lng = position.coords.longitude;
 
                 if (!myMarker) {
-                    myMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබේ වාහනය").openPopup();
+                    myMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
                 } else {
                     myMarker.setLatLng([lat, lng]);
                 }
                 map.setView([lat, lng], 16);
+                document.getElementById('status').innerText = "ලොකේෂන් එක සජීවීව යැවෙමින් පවතී: " + lat.toFixed(4) + ", " + lng.toFixed(4);
 
-                socket.emit('update_location', { 
-                    username: "{{ username }}", 
-                    role: "driver", 
+                // සර්වර් එක හරහා මගියාට ලොකේෂන් එක යැවීම
+                socket.emit('update_location', {
+                    lat: lat,
+                    lng: lng,
                     vehicle_code: myVehicleCode,
-                    lat: lat, 
-                    lng: lng 
+                    username: "{{ username }}"
                 });
-
-                document.getElementById('status').innerText = "සජීවී ලොකේෂන් එක මගීන් වෙත යැවෙමින් පවතී...";
-            }, err => {
-                document.getElementById('status').innerText = "කරුණාකර ඔබේ දුරකථනයේ Location (GPS) සක්‍රීය කරන්න!";
-            }, { 
-                enableHighAccuracy: true,
-                maximumAge: 0,
-                timeout: 10000 
-            });
+            }, (error) => {
+                console.log("GPS Error: ", error);
+                document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර ලොකේෂන් පර්මිෂන් ලබා දෙන්න.";
+            }, { enableHighAccuracy: true });
+        } else {
+            document.getElementById('status').innerText = "ඔබේ බ්‍රවුසරය Geolocation සඳහා සහය නොදක්වයි.";
         }
 
-        // මගීන්ගෙන් එන Attendance ලැබෙන විට පෙන්වීම
+        // මගියාගේ පැමිණීමේ තත්ත්වය (Present/Absent) රියදුරුට පෙන්වීම
         socket.on('broadcast_attendance', (data) => {
-            let statusText = data.status === 'Present' ? '🟢 පැමිණේ (Present)' : '🔴 පැමිණෙන්නේ නැත (Absent)';
-            document.getElementById('attendanceStatus').innerText = `${data.username}: ${statusText}`;
+            let badge = document.getElementById('attendance-status');
+            if (badge) {
+                badge.innerText = data.username + " - " + data.status;
+                badge.style.background = data.status === 'Present' ? '#28a745' : '#dc3545';
+            }
         });
     </script>
 </body>
