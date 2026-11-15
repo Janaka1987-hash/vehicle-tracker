@@ -45,6 +45,7 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
         socket.on('connect', () => {
+            console.log("Connected to server!");
             socket.emit('join', { vehicle_code: myVehicleCode });
         });
 
@@ -59,7 +60,7 @@
                 } else {
                     myMarker.setLatLng([lat, lng]);
                 }
-                map.setView([lat, lng], 15);
+                map.setView([lat, lng], 16);
 
                 socket.emit('update_location', { 
                     username: "{{ username }}", 
@@ -79,7 +80,7 @@
             });
         }
 
-        // මගීන්ගෙන් එන Attendance (Present/Absent) ලැබෙන විට පෙන්වීම
+        // මගීන්ගෙන් එන Attendance ලැබෙන විට පෙන්වීම
         socket.on('broadcast_attendance', (data) => {
             let statusText = data.status === 'Present' ? '🟢 පැමිණේ (Present)' : '🔴 පැමිණෙන්නේ නැත (Absent)';
             document.getElementById('attendanceStatus').innerText = `${data.username}: ${statusText}`;
