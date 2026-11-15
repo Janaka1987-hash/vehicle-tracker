@@ -39,43 +39,65 @@
     <!-- Socket.IO JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     
-    <script>
-        const socket = io({ transports: ['websocket', 'polling'] });
-        let map = L.map('map').setView([7.8731, 80.7718], 13);
-        let driverMarker;
-        let myVehicleCode = "{{ vehicle_code }}";
+   <script>
+    const socket = io({ transports: ['websocket', 'polling'] });
+    let map = L.map('map').setView([7.8731, 80.7718], 13);
+    let driverMarker;
+    let passengerMarker;
+    let myVehicleCode = "{{ vehicle_code }}";
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        socket.on('connect', () => {
-            console.log("Connected to server, joining room:", myVehicleCode);
-            socket.emit('join', { vehicle_code: myVehicleCode });
+    socket.on('connect', () => {
+        socket.emit('join', { vehicle_code: myVehicleCode });
+    });
+
+    function sendAttendance(status) {
+        socket.emit('update_attendance', {
+            username: "{{ username }}",
+            vehicle_code: myVehicleCode,
+            status: status
         });
+        alert("ඔබේ පැමිණීමේ තත්ත්වය යවන ලදී: " + status);
+    }
 
-        function sendAttendance(status) {
-            socket.emit('update_attendance', {
-                username: "{{ username }}",
-                vehicle_code: myVehicleCode,
-                status: status
-            });
-            alert("ඔබේ පැමිණීමේ තත්ත්වය රියදුරු වෙත යවන ලදී: " + status);
-        }
+    // රියදුරුගේ ලොකේෂන් එක ලැබුණු විට මගියාගේ සිතියමේ පෙන්වීම
+    socket.on('broadcast_location', (data) => {
+        if (data.lat && data.lng) {
+            let lat = parseFloat(data.lat);
+            let lng = parseFloat(data.lng);
 
-        socket.on('broadcast_location', (data) => {
-            console.log("Location data received:", data);
-            if (data.lat && data.lng) {
-                let lat = parseFloat(data.lat);
-                let lng = parseFloat(data.lng);
-
-                if (!driverMarker) {
-                    driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("වාහනය (රියදුරු: " + data.username + ")").openPopup();
-                } else {
-                    driverMarker.setLatLng([lat, lng]);
-                }
-                map.setView([lat, lng], 16);
-                document.getElementById('status').innerText = "රියදුරුගේ සජීවී ලොකේෂන් එක ලැබෙමින් පවතී: " + lat.toFixed(4) + ", " + lng.toFixed(4);
+            if (!driverMarker) {
+                driverMarker = L.marker([lat, lng], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', // නිවැරදි කරන ලද රතු පාට මාර්කර් ලින්ක් එක
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41]
+                    })
+                }).addTo(map).bindPopup("වාහනය / රියදුරු: " + data.username).openPopup();
+            } else {
+                driverMarker.setLatLng([lat, lng]);
             }
-        });
-    </script>
+            document.getElementById('status').innerText = "රියදුරුගේ සජීවී ලොකේෂන් එක ලැබෙමින් පවතී.";
+        }
+    });
+
+    // මගියාගේ ජීපීඑස් ලොකේෂන් එක ලබාගෙන සිතියමේ පෙන්වීම
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition((position) => {
+            let lat = position.coords.latitude;
+            let lng = position.coords.longitude;
+
+            if (!passengerMarker) {
+                passengerMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (මගියා)");
+            } else {
+                passengerMarker.setLatLng([lat, lng]);
+            }
+        }, (error) => {
+            console.log("GPS Error: ", error);
+        }, { enableHighAccuracy: true });
+    }
+</script>
 </body>
 </html>
