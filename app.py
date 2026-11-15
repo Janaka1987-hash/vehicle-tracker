@@ -7,11 +7,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-# SocketIO සමඟ eventlet async_mode නිවැරදිව සම්බන්ධ කිරීම
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Database එක සකස් කරගැනීම සහ Master Account එක ස්වයංක්‍රීයව සෑදීම
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -26,13 +24,10 @@ def init_db():
             receipt TEXT
         )
     ''')
-    
-    # ප්‍රධානියාගේ (Janaka) Free Master Account එක ස්වයංක්‍රීයව ඇතුළත් කිරීම
     cursor.execute("SELECT * FROM users WHERE username = ?", ('janaka@123',))
     if not cursor.fetchone():
         cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active, receipt) VALUES (?, ?, ?, ?, ?, ?)",
                        ('janaka@123', '19871019', 'owner', 'MASTER', 1, 'Owner Account (Free)'))
-    
     conn.commit()
     conn.close()
 
@@ -42,19 +37,17 @@ init_db()
 def index():
     if request.method == 'POST':
         return redirect(url_for('login'))
-        
     if 'username' not in session:
         return redirect(url_for('login'))
-        
+    
     role = session.get('role')
     is_active = session.get('is_active', 0)
     
     if role == 'owner':
         return redirect(url_for('owner_dashboard'))
-        
     if is_active == 0:
         return redirect(url_for('payment'))
-        
+    
     if role == 'driver':
         return render_template('driver_map.html', username=session['username'], vehicle_code=session.get('vehicle_code'))
     else:
@@ -232,7 +225,6 @@ def on_join(data):
 def handle_location(data):
     vehicle_code = data.get('vehicle_code')
     if vehicle_code:
-        # රියදුරුගෙන් එන ලොකේෂන් ඩේටා එම වාහන කෝඩ් එකේ සිටින මගීන්ට විකාශය කිරීම
         emit('broadcast_location', data, room=vehicle_code)
 
 @socketio.on('update_attendance')
