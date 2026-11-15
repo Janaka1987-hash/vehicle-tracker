@@ -1,61 +1,91 @@
-<script>
-    const socket = io({ transports: ['websocket', 'polling'] });
-    let map = L.map('map').setView([7.8731, 80.7718], 13);
-    let myMarker;
-    let myVehicleCode = "{{ vehicle_code }}";
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>රියදුරුගේ පිටුව - Driver Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+        header { background: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; padding-left: 20px; padding-right: 20px; }
+        #map { height: 68vh; width: 100%; }
+        .status { padding: 12px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 15px; }
+        .panel { background: #e9ecef; padding: 10px; display: flex; justify-content: center; gap: 15px; align-items: center; flex-wrap: wrap; font-weight: bold; }
+        a.logout { color: white; background: #dc3545; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
+        .badge { padding: 5px 10px; border-radius: 4px; color: white; background: #6c757d; }
+    </style>
+</head>
+<body>
+    <header>
+        <h3>ආයුබෝවන්, {{ username }} (රියදුරු - වාහන කෝඩ්: {{ vehicle_code }})</h3>
+        <a href="/logout" class="logout">ඉවත් වන්න</a>
+    </header>
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    <!-- මගියාගේ පැමිණීම පෙන්වන පැනලය -->
+    <div class="panel">
+        <span>මගියාගේ පැමිණීමේ තත්ත්වය:</span>
+        <span id="attendance-status" class="badge">තවමත් ලැබී නැත</span>
+    </div>
 
-    socket.on('connect', () => {
-        console.log("Connected to server, joining room:", myVehicleCode);
-        socket.emit('join', { vehicle_code: myVehicleCode });
-    });
+    <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක ලබා ගනිමින් පවතී...</div>
+    <div id="map"></div>
 
-    // ජීපීඑස් ලොකේෂන් එක නිරන්තරයෙන් ලබාගෙන සර්වර් එකට යැවීම
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition((position) => {
-            let lat = position.coords.latitude;
-            let lng = position.coords.longitude;
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Socket.IO JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    
+    <script>
+        const socket = io({ transports: ['websocket', 'polling'] });
+        let map = L.map('map').setView([7.8731, 80.7718], 13);
+        let myMarker;
+        let myVehicleCode = "{{ vehicle_code }}";
 
-            if (!myMarker) {
-                myMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
-            } else {
-                myMarker.setLatLng([lat, lng]);
-            }
-            map.setView([lat, lng], 16);
-            document.getElementById('status').innerText = "සජීවී ලොකේෂන් යැවෙමින් පවතී: Lat: " + lat.toFixed(4) + ", Lng: " + lng.toFixed(4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-            // සර්වර් එක හරහා මගියාට ලොකේෂන් එක යැවීම
-            socket.emit('update_location', {
-                lat: lat,
-                lng: lng,
-                vehicle_code: myVehicleCode,
-                username: "{{ username }}"
-            });
-        }, (error) => {
-            console.log("GPS Error: ", error);
-            // ජීපීඑස් ලොකේෂන් එක ලබාගැනීමේදී යම් බාධාවක් වුවහොත් කොළඹ ප්‍රදේශයේ ඩිෆෝල්ට් ලොකේෂන් එකක් යැවීම (ටෙස්ට් කිරීම පහසු වීමට)
-            let defaultLat = 6.9271;
-            let defaultLng = 79.8612;
-            
-            socket.emit('update_location', {
-                lat: defaultLat,
-                lng: defaultLng,
-                vehicle_code: myVehicleCode,
-                username: "{{ username }}"
-            });
-            document.getElementById('status').innerText = "GPS සංඥා දුර්වලයි - ඩිෆෝල්ට් ලොකේෂන් එක යැවේ.";
-        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
-    } else {
-        document.getElementById('status').innerText = "ඔබේ බ්‍රවුසරය Geolocation සඳහා සහය නොදක්වයි.";
-    }
+        socket.on('connect', () => {
+            console.log("Connected to server, joining room:", myVehicleCode);
+            socket.emit('join', { vehicle_code: myVehicleCode });
+        });
 
-    // මගියාගේ පැමිණීමේ තත්ත්වය රියදුරුට පෙන්වීම
-    socket.on('broadcast_attendance', (data) => {
-        let badge = document.getElementById('attendance-status');
-        if `badge` {
-            badge.innerText = data.username + " - " + data.status;
-            badge.style.background = data.status === 'Present' ? '#28a745' : '#dc3545';
+        // රියදුරුගේ ජීපීඑස් ලොකේෂන් එක සජීවීව මගියා වෙත යැවීම
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition((position) => {
+                let lat = position.coords.latitude;
+                let lng = position.coords.longitude;
+
+                if (!myMarker) {
+                    myMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
+                } else {
+                    myMarker.setLatLng([lat, lng]);
+                }
+                map.setView([lat, lng], 16);
+                document.getElementById('status').innerText = "ලොකේෂන් යැවෙමින් පවතී - Lat: " + lat.toFixed(4) + ", Lng: " + lng.toFixed(4);
+
+                // සර්වර් එක හරහා මගියාට ලොකේෂන් එක යැවීම
+                socket.emit('update_location', {
+                    lat: lat,
+                    lng: lng,
+                    vehicle_code: myVehicleCode,
+                    username: "{{ username }}"
+                });
+            }, (error) => {
+                console.log("GPS Error: ", error);
+                document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර ලොකේෂන් පර්මිෂන් ලබා දෙන්න.";
+            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
+        } else {
+            document.getElementById('status').innerText = "ඔබේ බ්‍රවුසරය Geolocation සඳහා සහය නොදක්වයි.";
         }
-    });
-</script>
+
+        // මගියාගේ පැමිණීමේ තත්ත්වය (Present/Absent) රියදුරුට පෙන්වීම
+        socket.on('broadcast_attendance', (data) => {
+            let badge = document.getElementById('attendance-status');
+            if (badge) {
+                badge.innerText = data.username + " - " + data.status;
+                badge.style.background = data.status === 'Present' ? '#28a745' : '#dc3545';
+            }
+        });
+    </script>
+</body>
+</html>
