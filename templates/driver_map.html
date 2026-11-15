@@ -3,35 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>මගියාගේ පිටුව - Passenger Dashboard</title>
+    <title>රියදුරුගේ පිටුව - Driver Dashboard</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
-        header { background: #28a745; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; padding-left: 20px; padding-right: 20px; }
+        header { background: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; padding-left: 20px; padding-right: 20px; }
         #map { height: 68vh; width: 100%; }
-        .status { padding: 12px; background: #d4edda; font-weight: bold; color: #155724; font-size: 15px; }
+        .status { padding: 12px; background: #d1ecf1; font-weight: bold; color: #0c5460; font-size: 15px; }
         .panel { background: #e9ecef; padding: 10px; display: flex; justify-content: center; gap: 15px; align-items: center; flex-wrap: wrap; font-weight: bold; }
         a.logout { color: white; background: #dc3545; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
-        .btn-attendance { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; color: white; }
-        .btn-present { background: #28a745; }
-        .btn-absent { background: #dc3545; }
+        .attendance-box { background: white; padding: 5px 15px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
     </style>
 </head>
 <body>
     <header>
-        <h3>ආයුබෝවන්, {{ username }} (මගී - වාහන කෝඩ්: {{ vehicle_code }})</h3>
+        <h3>ආයුබෝවන්, {{ username }} (රියදුරු - වාහන කෝඩ්: {{ vehicle_code }})</h3>
         <a href="/logout" class="logout">ඉවත් වන්න</a>
     </header>
 
-    <!-- පැමිණීම (Attendance) සටහන් කිරීමේ පැනලය -->
+    <!-- මගීන්ගේ පැමිණීමේ තත්ත්වය පෙන්වන පැනලය -->
     <div class="panel">
-        <span>අද පැමිණීම:</span>
-        <button class="btn-attendance btn-present" onclick="sendAttendance('Present')">🟢 එනවා (Present)</button>
-        <button class="btn-attendance btn-absent" onclick="sendAttendance('Absent')">🔴 එන්නේ නැහැ (Absent)</button>
+        <span>මගීන්ගේ පැමිණීම:</span>
+        <div class="attendance-box" id="attendanceStatus">තවම තොරතුරු ලැබී නැත</div>
     </div>
 
-    <div class="status" id="status">රියදුරුගේ සජීවී ලොකේෂන් එක බලාපොරොත්තු වෙමින් පවතී...</div>
+    <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක මගීන් වෙත යැවීම ආරම්භ කරමින් පවතී...</div>
     <div id="map"></div>
 
     <!-- Leaflet JS -->
@@ -42,7 +39,7 @@
     <script>
         const socket = io();
         let map = L.map('map').setView([7.8731, 80.7718], 13);
-        let driverMarker;
+        let myMarker;
         let myVehicleCode = "{{ vehicle_code }}";
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -51,30 +48,41 @@
             socket.emit('join', { vehicle_code: myVehicleCode });
         });
 
-        // මගියාගේ පැමිණීමේ තත්ත්වය රියදුරු වෙත යැවීම
-        function sendAttendance(status) {
-            socket.emit('update_attendance', {
-                username: "{{ username }}",
-                vehicle_code: myVehicleCode,
-                status: status
-            });
-            alert("ඔබේ පැමිණීමේ තත්ත්වය රියදුරු වෙත යවන ලදී: " + status);
-        }
+        // රියදුරුගේ ජීපීඑස් ලොකේෂන් ලබාගෙන මගීන් වෙත ඊමිට් කිරීම
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(position => {
+                let lat = position.coords.latitude;
+                let lng = position.coords.longitude;
 
-        // රියදුරුගෙන් එන සජීවී ලොකේෂන් එක ලබාගෙන සිතියම මත පෙන්වීම
-        socket.on('broadcast_location', (data) => {
-            if (data.role === 'driver') {
-                let lat = data.lat;
-                let lng = data.lng;
-
-                if (!driverMarker) {
-                    driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("වාහනය (රියදුරු: " + data.username + ")").openPopup();
+                if (!myMarker) {
+                    myMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබේ වාහනය").openPopup();
                 } else {
-                    driverMarker.setLatLng([lat, lng]);
+                    myMarker.setLatLng([lat, lng]);
                 }
                 map.setView([lat, lng], 15);
-                document.getElementById('status').innerText = "රියදුරුගේ සජීවී ලොකේෂන් එක ලැබෙමින් පවතී...";
-            }
+
+                socket.emit('update_location', { 
+                    username: "{{ username }}", 
+                    role: "driver", 
+                    vehicle_code: myVehicleCode,
+                    lat: lat, 
+                    lng: lng 
+                });
+
+                document.getElementById('status').innerText = "සජීවී ලොකේෂන් එක මගීන් වෙත යැවෙමින් පවතී...";
+            }, err => {
+                document.getElementById('status').innerText = "කරුණාකර ඔබේ දුරකථනයේ Location (GPS) සක්‍රීය කරන්න!";
+            }, { 
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 10000 
+            });
+        }
+
+        // මගීන්ගෙන් එන Attendance (Present/Absent) ලැබෙන විට පෙන්වීම
+        socket.on('broadcast_attendance', (data) => {
+            let statusText = data.status === 'Present' ? '🟢 පැමිණේ (Present)' : '🔴 පැමිණෙන්නේ නැත (Absent)';
+            document.getElementById('attendanceStatus').innerText = `${data.username}: ${statusText}`;
         });
     </script>
 </body>
