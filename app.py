@@ -28,6 +28,17 @@ def init_db():
             expiry_date TEXT
         )
     ''')
+    
+    # පැරණි ඩේටාබේස් එකක කණු මගහැරී තිබේ නම් ස්වයංක්‍රීයව එකතු කරගැනීමට
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN receipt TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN expiry_date TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     cursor.execute("SELECT * FROM users WHERE username = ?", ('janaka@123',))
     if not cursor.fetchone():
         cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active, receipt, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -50,7 +61,6 @@ def index():
     if role == 'owner':
         return redirect(url_for('owner_dashboard'))
 
-    # ඩේටාබේස් එකෙන් අදාළ යූසර්ගේ කල් ඉකුත් වීමේ දිනය සහ status පරීක්ෂා කිරීම
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute("SELECT is_active, expiry_date FROM users WHERE username = ?", (username,))
@@ -63,7 +73,6 @@ def index():
 
         now = datetime.utcnow() + timedelta(hours=5, minutes=30)
 
-        # දින 30 කල් ඉකුත් වී ඇත්දැයි පරීක්ෂා කිරීම (Expiry Check)
         if is_active == 1 and expiry_date_str:
             try:
                 expiry_dt = datetime.strptime(expiry_date_str, '%Y-%m-%d %H:%M:%S')
@@ -143,7 +152,6 @@ def toggle_status(user_id):
     if result:
         current_status = result[0]
         new_status = 0 if current_status == 1 else 1
-        # ඇක්ටිව් කළ විට හරියටම දින 30 කට පසු Expiry Date එක සටහන් වේ
         new_expiry = (datetime.utcnow() + timedelta(hours=5, minutes=30) + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S') if new_status == 1 else None
         cursor.execute("UPDATE users SET is_active = ?, expiry_date = ? WHERE id = ?", (new_status, new_expiry, user_id))
         conn.commit()
@@ -231,7 +239,6 @@ def payment():
 
                 conn = sqlite3.connect('database.db')
                 cursor = conn.cursor()
-                # රිසිට්පත පමණක් සේව් කර Admin අනුමැතිය සඳහා යොමු කරයි
                 cursor.execute("UPDATE users SET receipt = ? WHERE username = ?", (filename, session['username']))
                 conn.commit()
                 conn.close()
@@ -244,8 +251,6 @@ def payment():
 def logout():
     session.clear()
     return redirect(url_for('login'))
-
-# --- Socket.io Rooms සහ Location Handling ---
 
 @socketio.on('join')
 def on_join(data):
