@@ -4,7 +4,7 @@ import sqlite3
 import os
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import Image
 import pytesseract
 
@@ -28,10 +28,10 @@ def init_db():
             role TEXT NOT NULL,
             vehicle_code TEXT,
             is_active INTEGER DEFAULT 0,
-            receipt TEXT
+            receipt TEXT,
+            expiry_date TEXT
         )
     ''')
-    # එකම රිසිට් එක දෙවරක් Upload කිරීම වැළැක්වීමට වගුවක්
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS used_receipts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,8 +43,8 @@ def init_db():
     ''')
     cursor.execute("SELECT * FROM users WHERE username = ?", ('janaka@123',))
     if not cursor.fetchone():
-        cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active, receipt) VALUES (?, ?, ?, ?, ?, ?)",
-                       ('janaka@123', '19871019', 'owner', 'MASTER', 1, 'Owner Account (Free)'))
+        cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active, receipt, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       ('janaka@123', '19871019', 'owner', 'MASTER', 1, 'Owner Account (Free)', '2099-12-31 23:59:59'))
     conn.commit()
     conn.close()
 
@@ -72,10 +72,7 @@ def verify_receipt_image(filepath, role):
             return False, "මෙය වලංගු මූල්‍යමය ගනුදෙනු රිසිට්පතක් ලෙස හඳුනාගත නොහැක!", None
 
         # 4. අද දිනය පරීක්ෂාව (ශ්‍රී ලංකා වේලාව අනුව +5:30)
-        # විවිධ බැංකු රිසිට් වල දිනය සටහන් වන ආකාර (උදා: 2026-11-16, 16/11/2026, 16-11-2026, 16 Nov 2026)
         now = datetime.utcnow()
-        # UTC + 5:30
-        from datetime import timedelta
         sl_now = now + timedelta(hours=5, minutes=30)
         
         d_formats = [
@@ -91,7 +88,7 @@ def verify_receipt_image(filepath, role):
         if not any(df in raw_lower for df in d_formats):
             return False, f"රිසිට්පතේ දිනය අද දිනය ({sl_now.strftime('%Y-%m-%d')}) සමඟ නොගැලපේ!", None
 
-        # 5. වේලාව (Time) හඳුනාගෙන Unique Signature එකක් සෑදීම (එකම රිසිට් එක දෙවරක් දැමීම වැළැක්වීමට)
+        # 5. වේලාව සහ Signatures
         time_match = re.search(r'\b([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?\b', text)
         extracted_time = time_match.group(0) if time_match else "NO_TIME"
         signature = f"{sl_now.strftime('%Y-%m-%d')}_{extracted_time}_{expected_amount}_2975"
@@ -108,18 +105,48 @@ def index():
     if 'username' not in session:
         return redirect(url_for('login'))
     
+    username = session.get('username')
     role = session.get('role')
-    is_active = session.get('is_active', 0)
-    
+
     if role == 'owner':
         return redirect(url_for('owner_dashboard'))
-    if is_active == 0:
-        return redirect(url_for('payment'))
-    
+
+    # ඩේටාබේස් එකෙන් අදාළ යූසර්ගේ කල් ඉකුත් වීමේ දිනය සහ status පරීක්ෂා කිරීම
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_active, expiry_date FROM users WHERE username = ?", (username,))
+    user_data = cursor.fetchone()
+    conn.close()
+
+    if user_data:
+        is_active = user_data[0]
+        expiry_date_str = user_data[1]
+
+        now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+
+        # කල් ඉකුත් වී ඇත්දැයි පරීක්ෂා කිරීම (Expiry Check)
+        if is_active == 1 and expiry_date_str:
+            try:
+                expiry_dt = datetime.strptime(expiry_date_str, '%Y-%m-%d %H:%M:%S')
+                if now > expiry_dt:
+                    # කල් ඉකුත් වී නම් is_active 0 කර payment පිටුවට යැවීම
+                    conn = sqlite3.connect('database.db')
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE users SET is_active = 0 WHERE username = ?", (username,))
+                    conn.commit()
+                    conn.close()
+                    session['is_active'] = 0
+                    return redirect(url_for('payment'))
+            except Exception as e:
+                pass
+
+        if is_active == 0:
+            return redirect(url_for('payment'))
+
     if role == 'driver':
-        return render_template('driver_map.html', username=session['username'], vehicle_code=session.get('vehicle_code'))
+        return render_template('driver_map.html', username=username, vehicle_code=session.get('vehicle_code'))
     else:
-        return render_template('passenger_map.html', username=session['username'], vehicle_code=session.get('vehicle_code'))
+        return render_template('passenger_map.html', username=username, vehicle_code=session.get('vehicle_code'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -142,10 +169,8 @@ def login():
             
             if user[3] == 'owner':
                 return redirect(url_for('owner_dashboard'))
-            elif user[5] == 1:
-                return redirect(url_for('index'))
             else:
-                return redirect(url_for('payment'))
+                return redirect(url_for('index'))
         else:
             return "<script>alert('වැරදි නමක් හෝ මුරපදයක්! කරුණාකර නැවත උත්සාහ කරන්න.'); window.location.href='/login';</script>"
             
@@ -161,7 +186,7 @@ def owner_dashboard():
         
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT id, username, password, role, vehicle_code, is_active, receipt FROM users")
+    cursor.execute("SELECT id, username, password, role, vehicle_code, is_active, receipt, expiry_date FROM users")
     users = cursor.fetchall()
     conn.close()
     
@@ -180,7 +205,8 @@ def toggle_status(user_id):
     if result:
         current_status = result[0]
         new_status = 0 if current_status == 1 else 1
-        cursor.execute("UPDATE users SET is_active = ? WHERE id = ?", (new_status, user_id))
+        new_expiry = (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S') if new_status == 1 else None
+        cursor.execute("UPDATE users SET is_active = ?, expiry_date = ? WHERE id = ?", (new_status, new_expiry, user_id))
         conn.commit()
     
     conn.close()
@@ -260,7 +286,6 @@ def payment():
         if 'receipt' in request.files:
             file = request.files['receipt']
             if file.filename != '':
-                # 1. File Hash එක ගණනය කර පෙර භාවිතා කර ඇත්දැයි බැලීම
                 file_bytes = file.read()
                 file_hash = hashlib.sha256(file_bytes).hexdigest()
                 file.seek(0)
@@ -276,14 +301,13 @@ def payment():
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
 
-                # 2. OCR මඟින් රිසිට්පතේ දත්ත පරීක්ෂා කිරීම
+                # OCR පරීක්ෂාව
                 is_valid, message, signature = verify_receipt_image(filepath, role)
                 if not is_valid:
-                    os.remove(filepath) # වලංගු නොවන ෆයිල් එක ඉවත් කිරීම
+                    os.remove(filepath)
                     conn.close()
                     return f"<script>alert('අසාර්ථකයි: {message}'); window.location.href='/payment';</script>"
 
-                # 3. එකම වේලාව සහ දිනය ඇති රිසිට් එකක් දෙවරක් දැමීම වැළැක්වීම
                 if signature and "NO_TIME" not in signature:
                     cursor.execute("SELECT * FROM used_receipts WHERE receipt_signature = ?", (signature,))
                     if cursor.fetchone():
@@ -291,16 +315,18 @@ def payment():
                         conn.close()
                         return "<script>alert('මෙම ගනුදෙනු රිසිට්පත දැනටමත් භාවිතා කර ඇත! එකම රිසිට්පත දෙවරක් භාවිතා කළ නොහැක.'); window.location.href='/payment';</script>"
 
-                # සියල්ල නිවැරදි නම් රිසිට්පත සේව් කර ගිණුම සක්‍රීය කිරීම
+                # දින 30 ක කල් ඉකුත්වීමේ දිනය (Expiry Date) ගණනය කිරීම
+                expiry_dt = (datetime.utcnow() + timedelta(hours=5, minutes=30) + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+
                 cursor.execute("INSERT INTO used_receipts (file_hash, receipt_signature, username, uploaded_at) VALUES (?, ?, ?, ?)",
                                (file_hash, signature, session['username'], str(datetime.now())))
-                cursor.execute("UPDATE users SET is_active = 1, receipt = ? WHERE username = ?", 
-                               (filename, session['username']))
+                cursor.execute("UPDATE users SET is_active = 1, receipt = ?, expiry_date = ? WHERE username = ?", 
+                               (filename, expiry_dt, session['username']))
                 conn.commit()
                 conn.close()
                 
                 session['is_active'] = 1
-                return f"<script>alert('ගෙවීම තහවුරු විය! ඔබේ ගිණුම සක්‍රීය කරන ලදී.'); window.location.href='/';</script>"
+                return f"<script>alert('ගෙවීම තහවුරු විය! ඔබේ ගිණුම ඉදිරි දින 30 සඳහා සක්‍රීය කරන ලදී.'); window.location.href='/';</script>"
                 
     return render_template('payment.html', fee=fee, username=session['username'])
 
@@ -309,7 +335,7 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- Socket.io Rooms සහ Multi-Passenger Location Handling ---
+# --- Socket.io Rooms සහ Location Handling ---
 
 @socketio.on('join')
 def on_join(data):
