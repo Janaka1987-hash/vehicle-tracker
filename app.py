@@ -10,6 +10,9 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# අවසන් වරට ලැබුණු ලොකේෂන් මතක තබා ගැනීමට
+latest_locations = {}
+
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -129,7 +132,7 @@ def edit_user(user_id):
     if request.method == 'POST':
         new_username = request.form['username']
         new_password = request.form['password']
-        new_vehicle_code = request.form['vehicle_code']
+        new_vehicle_code = request.form['vehicle_code'].strip()
         
         cursor.execute("UPDATE users SET username = ?, password = ?, vehicle_code = ? WHERE id = ?",
                        (new_username, new_password, new_vehicle_code, user_id))
@@ -166,7 +169,7 @@ def register():
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']
-        vehicle_code = request.form.get('vehicle_code', '')
+        vehicle_code = request.form.get('vehicle_code', '').strip()
         
         try:
             conn = sqlite3.connect('database.db')
@@ -212,24 +215,31 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- Socket.io Rooms සහ Location Handling ---
+# --- Socket.io Rooms සහ දෙපාර්ශවයේම Location Handling ---
 
 @socketio.on('join')
 def on_join(data):
-    vehicle_code = data.get('vehicle_code')
+    vehicle_code = str(data.get('vehicle_code', '')).strip()
     if vehicle_code:
         join_room(vehicle_code)
-        print(f"User joined room: {vehicle_code}")
+        # කලින් සේව් වී ඇති ලොකේෂන් තිබේ නම් එසැණින් ලබා දීම
+        if vehicle_code in latest_locations:
+            for role_key, loc_data in latest_locations[vehicle_code].items():
+                emit('broadcast_location', loc_data)
 
 @socketio.on('update_location')
 def handle_location(data):
-    vehicle_code = data.get('vehicle_code')
-    if vehicle_code:
+    vehicle_code = str(data.get('vehicle_code', '')).strip()
+    role = data.get('role')
+    if vehicle_code and role:
+        if vehicle_code not in latest_locations:
+            latest_locations[vehicle_code] = {}
+        latest_locations[vehicle_code][role] = data
         emit('broadcast_location', data, room=vehicle_code)
 
 @socketio.on('update_attendance')
 def handle_attendance(data):
-    vehicle_code = data.get('vehicle_code')
+    vehicle_code = str(data.get('vehicle_code', '')).strip()
     if vehicle_code:
         emit('broadcast_attendance', data, room=vehicle_code)
 
