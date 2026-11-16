@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>මගියාගේ පිටුව - Passenger Dashboard</title>
-    <!-- Leaflet CSS -->
+    <!-- Leaflet CSS & Routing Machine CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
         header { background: #28a745; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; padding-left: 20px; padding-right: 20px; }
@@ -16,6 +17,7 @@
         .btn-attendance { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; color: white; }
         .btn-present { background: #28a745; }
         .btn-absent { background: #dc3545; }
+        .leaflet-routing-container { display: none; }
     </style>
 </head>
 <body>
@@ -24,7 +26,6 @@
         <a href="/logout" class="logout">ඉවත් වන්න</a>
     </header>
 
-    <!-- පැමිණීම (Attendance) සටහන් කිරීමේ පැනලය -->
     <div class="panel">
         <span>අද පැමිණීම:</span>
         <button class="btn-attendance btn-present" onclick="sendAttendance('Present')">🟢 එනවා (Present)</button>
@@ -34,70 +35,110 @@
     <div class="status" id="status">රියදුරුගේ සජීවී ලොකේෂන් එක බලාපොරොත්තු වෙමින් පවතී...</div>
     <div id="map"></div>
 
-    <!-- Leaflet JS -->
+    <!-- Leaflet JS, Routing Machine JS & Socket.IO JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Socket.IO JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     
-   <script>
-    const socket = io({ transports: ['websocket', 'polling'] });
-    let map = L.map('map').setView([7.8731, 80.7718], 13);
-    let driverMarker;
-    let passengerMarker;
-    let myVehicleCode = "{{ vehicle_code }}";
+    <script>
+        const socket = io({ transports: ['websocket', 'polling'] });
+        let map = L.map('map').setView([7.8731, 80.7718], 13);
+        let driverMarker = null;
+        let passengerMarker = null;
+        let routeControl = null;
+        let driverCoords = null;
+        let passengerCoords = null;
+        let myVehicleCode = "{{ vehicle_code }}".trim();
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-    socket.on('connect', () => {
-        socket.emit('join', { vehicle_code: myVehicleCode });
-    });
-
-    function sendAttendance(status) {
-        socket.emit('update_attendance', {
-            username: "{{ username }}",
-            vehicle_code: myVehicleCode,
-            status: status
+        const redIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
         });
-        alert("ඔබේ පැමිණීමේ තත්ත්වය යවන ලදී: " + status);
-    }
 
-    // රියදුරුගේ ලොකේෂන් එක ලැබුණු විට මගියාගේ සිතියමේ පෙන්වීම
-    socket.on('broadcast_location', (data) => {
-        if (data.lat && data.lng) {
-            let lat = parseFloat(data.lat);
-            let lng = parseFloat(data.lng);
+        socket.on('connect', () => {
+            socket.emit('join', { vehicle_code: myVehicleCode });
+        });
 
-            if (!driverMarker) {
-                driverMarker = L.marker([lat, lng], {
-                    icon: L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', // නිවැරදි කරන ලද රතු පාට මාර්කර් ලින්ක් එක
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41]
-                    })
-                }).addTo(map).bindPopup("වාහනය / රියදුරු: " + data.username).openPopup();
-            } else {
-                driverMarker.setLatLng([lat, lng]);
+        function updateRoute() {
+            if (driverCoords && passengerCoords) {
+                if (routeControl) {
+                    routeControl.setWaypoints([
+                        L.latLng(driverCoords[0], driverCoords[1]),
+                        L.latLng(passengerCoords[0], passengerCoords[1])
+                    ]);
+                } else {
+                    routeControl = L.Routing.control({
+                        waypoints: [
+                            L.latLng(driverCoords[0], driverCoords[1]),
+                            L.latLng(passengerCoords[0], passengerCoords[1])
+                        ],
+                        createMarker: function() { return null; },
+                        lineOptions: { styles: [{ color: '#dc3545', weight: 5 }] },
+                        addWaypoints: false,
+                        draggableWaypoints: false,
+                        fitSelectedRoutes: true
+                    }).addTo(map);
+                }
             }
-            document.getElementById('status').innerText = "රියදුරුගේ සජීවී ලොකේෂන් එක ලැබෙමින් පවතී.";
         }
-    });
 
-    // මගියාගේ ජීපීඑස් ලොකේෂන් එක ලබාගෙන සිතියමේ පෙන්වීම
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition((position) => {
-            let lat = position.coords.latitude;
-            let lng = position.coords.longitude;
+        function sendAttendance(status) {
+            socket.emit('update_attendance', {
+                username: "{{ username }}",
+                vehicle_code: myVehicleCode,
+                status: status
+            });
+            alert("ඔබේ පැමිණීමේ තත්ත්වය යවන ලදී: " + status);
+        }
 
-            if (!passengerMarker) {
-                passengerMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (මගියා)");
-            } else {
-                passengerMarker.setLatLng([lat, lng]);
+        // රියදුරුගේ ලොකේෂන් ලැබුණු විට සිතියමේ පෙන්වීම
+        socket.on('broadcast_location', (data) => {
+            if (data.role === 'driver' && data.lat && data.lng) {
+                let dLat = parseFloat(data.lat);
+                let dLng = parseFloat(data.lng);
+                driverCoords = [dLat, dLng];
+
+                if (!driverMarker) {
+                    driverMarker = L.marker([dLat, dLng], { icon: redIcon }).addTo(map).bindPopup("වාහනය / රියදුරු: " + data.username).openPopup();
+                } else {
+                    driverMarker.setLatLng([dLat, dLng]);
+                }
+                document.getElementById('status').innerText = "රියදුරුගේ (" + data.username + ") සජීවී ලොකේෂන් එක ලැබෙමින් පවතී.";
+                updateRoute();
             }
-        }, (error) => {
-            console.log("GPS Error: ", error);
-        }, { enableHighAccuracy: true });
-    }
-</script>
+        });
+
+        // මගියාගේ ලොකේෂන් ලබාගෙන සිතියමේ පෙන්වීම සහ රියදුරුට යැවීම
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition((position) => {
+                let lat = position.coords.latitude;
+                let lng = position.coords.longitude;
+                passengerCoords = [lat, lng];
+
+                if (!passengerMarker) {
+                    passengerMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (මගියා)").openPopup();
+                    map.setView([lat, lng], 15);
+                } else {
+                    passengerMarker.setLatLng([lat, lng]);
+                }
+
+                socket.emit('update_location', {
+                    role: 'passenger',
+                    lat: lat,
+                    lng: lng,
+                    vehicle_code: myVehicleCode,
+                    username: "{{ username }}"
+                });
+
+                updateRoute();
+            }, (error) => {
+                console.log("GPS Error: ", error);
+            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+        }
+    </script>
 </body>
 </html>
