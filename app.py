@@ -10,7 +10,8 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# අවසන් වරට ලැබුණු ලොකේෂන් මතක තබා ගැනීමට
+# වාහන කෝඩ් අනුව රියදුරු සහ සියලුම මගීන්ගේ ලොකේෂන් මතක තබා ගැනීමට
+# ව්‍යුහය: { '1000': { 'driver': {...}, 'passengers': { 'user1': {...}, 'user2': {...} } } }
 latest_locations = {}
 
 def init_db():
@@ -215,26 +216,37 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- Socket.io Rooms සහ දෙපාර්ශවයේම Location Handling ---
+# --- Socket.io Rooms සහ Multi-Passenger Location Handling ---
 
 @socketio.on('join')
 def on_join(data):
     vehicle_code = str(data.get('vehicle_code', '')).strip()
     if vehicle_code:
         join_room(vehicle_code)
-        # කලින් සේව් වී ඇති ලොකේෂන් තිබේ නම් එසැණින් ලබා දීම
         if vehicle_code in latest_locations:
-            for role_key, loc_data in latest_locations[vehicle_code].items():
-                emit('broadcast_location', loc_data)
+            room_data = latest_locations[vehicle_code]
+            if 'driver' in room_data:
+                emit('broadcast_location', room_data['driver'])
+            if 'passengers' in room_data:
+                for p_user, p_data in room_data['passengers'].items():
+                    emit('broadcast_location', p_data)
 
 @socketio.on('update_location')
 def handle_location(data):
     vehicle_code = str(data.get('vehicle_code', '')).strip()
     role = data.get('role')
-    if vehicle_code and role:
+    username = data.get('username')
+    if vehicle_code and role and username:
         if vehicle_code not in latest_locations:
-            latest_locations[vehicle_code] = {}
-        latest_locations[vehicle_code][role] = data
+            latest_locations[vehicle_code] = {'passengers': {}}
+        
+        if role == 'driver':
+            latest_locations[vehicle_code]['driver'] = data
+        elif role == 'passenger':
+            if 'passengers' not in latest_locations[vehicle_code]:
+                latest_locations[vehicle_code]['passengers'] = {}
+            latest_locations[vehicle_code]['passengers'][username] = data
+            
         emit('broadcast_location', data, room=vehicle_code)
 
 @socketio.on('update_attendance')
