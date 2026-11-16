@@ -4,3 +4,5 @@ Werkzeug
 gunicorn
 simple-websocket
 eventlet
+pytesseract
+Pillow
