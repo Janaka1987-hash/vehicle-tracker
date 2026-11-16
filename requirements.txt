@@ -1,8 +1,5 @@
-Flask
-Flask-SocketIO
-Werkzeug
-gunicorn
-simple-websocket
-eventlet
+flask
+flask-socketio
 pytesseract
 Pillow
+gunicorn
