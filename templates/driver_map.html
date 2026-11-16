@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>රියදුරුගේ පිටුව - Driver Dashboard</title>
-    <!-- Leaflet CSS -->
+    <!-- Leaflet CSS & Routing Machine CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
         header { background: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; padding-left: 20px; padding-right: 20px; }
@@ -14,6 +15,7 @@
         .panel { background: #e9ecef; padding: 10px; display: flex; justify-content: center; gap: 15px; align-items: center; flex-wrap: wrap; font-weight: bold; }
         a.logout { color: white; background: #dc3545; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
         .badge { padding: 5px 10px; border-radius: 4px; color: white; background: #6c757d; }
+        .leaflet-routing-container { display: none; } /* සිතියම අවහිර වන විස්තර කොටුව සැඟවීමට */
     </style>
 </head>
 <body>
@@ -22,7 +24,6 @@
         <a href="/logout" class="logout">ඉවත් වන්න</a>
     </header>
 
-    <!-- මගියාගේ පැමිණීම පෙන්වන පැනලය -->
     <div class="panel">
         <span>මගියාගේ පැමිණීමේ තත්ත්වය:</span>
         <span id="attendance-status" class="badge">තවමත් ලැබී නැත</span>
@@ -31,54 +32,103 @@
     <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක ලබා ගනිමින් පවතී...</div>
     <div id="map"></div>
 
-    <!-- Leaflet JS -->
+    <!-- Leaflet JS, Routing Machine JS & Socket.IO JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Socket.IO JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     
     <script>
         const socket = io({ transports: ['websocket', 'polling'] });
         let map = L.map('map').setView([7.8731, 80.7718], 13);
-        let myMarker;
-        let myVehicleCode = "{{ vehicle_code }}";
+        let driverMarker = null;
+        let passengerMarker = null;
+        let routeControl = null;
+        let driverCoords = null;
+        let passengerCoords = null;
+        let myVehicleCode = "{{ vehicle_code }}".trim();
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
+        const greenIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+        });
+
         socket.on('connect', () => {
-            console.log("Connected to server, joining room:", myVehicleCode);
             socket.emit('join', { vehicle_code: myVehicleCode });
         });
 
-        // රියදුරුගේ ජීපීඑස් ලොකේෂන් එක සජීවීව මගියා වෙත යැවීම
+        function updateRoute() {
+            if (driverCoords && passengerCoords) {
+                if (routeControl) {
+                    routeControl.setWaypoints([
+                        L.latLng(driverCoords[0], driverCoords[1]),
+                        L.latLng(passengerCoords[0], passengerCoords[1])
+                    ]);
+                } else {
+                    routeControl = L.Routing.control({
+                        waypoints: [
+                            L.latLng(driverCoords[0], driverCoords[1]),
+                            L.latLng(passengerCoords[0], passengerCoords[1])
+                        ],
+                        createMarker: function() { return null; }, // අමතර මාර්කර් සෑදීම වැළැක්වීමට
+                        lineOptions: { styles: [{ color: '#007bff', weight: 5 }] },
+                        addWaypoints: false,
+                        draggableWaypoints: false,
+                        fitSelectedRoutes: true
+                    }).addTo(map);
+                }
+            }
+        }
+
+        // රියදුරුගේ ලොකේෂන් ලබාගෙන යැවීම
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition((position) => {
                 let lat = position.coords.latitude;
                 let lng = position.coords.longitude;
+                driverCoords = [lat, lng];
 
-                if (!myMarker) {
-                    myMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
+                if (!driverMarker) {
+                    driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
+                    map.setView([lat, lng], 15);
                 } else {
-                    myMarker.setLatLng([lat, lng]);
+                    driverMarker.setLatLng([lat, lng]);
                 }
-                map.setView([lat, lng], 16);
-                document.getElementById('status').innerText = "ලොකේෂන් යැවෙමින් පවතී - Lat: " + lat.toFixed(4) + ", Lng: " + lng.toFixed(4);
 
-                // සර්වර් එක හරහා මගියාට ලොකේෂන් එක යැවීම
+                document.getElementById('status').innerText = "ලොකේෂන් සජීවීව යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
+
                 socket.emit('update_location', {
+                    role: 'driver',
                     lat: lat,
                     lng: lng,
                     vehicle_code: myVehicleCode,
                     username: "{{ username }}"
                 });
+
+                updateRoute();
             }, (error) => {
-                console.log("GPS Error: ", error);
                 document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර ලොකේෂන් පර්මිෂන් ලබා දෙන්න.";
-            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
-        } else {
-            document.getElementById('status').innerText = "ඔබේ බ්‍රවුසරය Geolocation සඳහා සහය නොදක්වයි.";
+            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
         }
 
-        // මගියාගේ පැමිණීමේ තත්ත්වය (Present/Absent) රියදුරුට පෙන්වීම
+        // මගියාගේ ලොකේෂන් ලැබුණු විට සිතියමේ පෙන්වීම
+        socket.on('broadcast_location', (data) => {
+            if (data.role === 'passenger' && data.lat && data.lng) {
+                let pLat = parseFloat(data.lat);
+                let pLng = parseFloat(data.lng);
+                passengerCoords = [pLat, pLng];
+
+                if (!passengerMarker) {
+                    passengerMarker = L.marker([pLat, pLng], { icon: greenIcon }).addTo(map).bindPopup("මගියා: " + data.username).openPopup();
+                } else {
+                    passengerMarker.setLatLng([pLat, pLng]);
+                }
+                updateRoute();
+            }
+        });
+
         socket.on('broadcast_attendance', (data) => {
             let badge = document.getElementById('attendance-status');
             if (badge) {
