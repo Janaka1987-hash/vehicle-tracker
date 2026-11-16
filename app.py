@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, send_file
 from flask_socketio import SocketIO, emit, join_room
 import sqlite3
 import os
@@ -29,7 +29,6 @@ def init_db():
         )
     ''')
     
-    # පැරණි ඩේටාබේස් එකක කණු මගහැරී තිබේ නම් ස්වයංක්‍රීයව එකතු කරගැනීමට
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN receipt TEXT")
     except sqlite3.OperationalError:
@@ -138,6 +137,18 @@ def owner_dashboard():
     conn.close()
     
     return render_template('owner_dashboard.html', username=session['username'], users=users)
+
+# --- ඩේටාබේස් බැකප් එක ඩවුන්ලෝඩ් කරගැනීමේ පහසුකම ---
+@app.route('/download_backup')
+def download_backup():
+    if 'username' not in session or session.get('role') != 'owner':
+        return redirect(url_for('login'))
+    
+    db_path = 'database.db'
+    if os.path.exists(db_path):
+        return send_file(db_path, as_attachment=True, download_name=f"database_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+    else:
+        return "Database file not found!", 404
 
 @app.route('/toggle_status/<int:user_id>')
 def toggle_status(user_id):
