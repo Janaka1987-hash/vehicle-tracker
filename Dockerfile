@@ -1,6 +1,5 @@
 FROM python:3.11-slim
 
-# Tesseract OCR සහ අවශ්‍ය පද්ධති පැකේජ ස්ථාපනය කිරීම
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev \
