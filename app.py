@@ -2,6 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from flask_socketio import SocketIO, emit, join_room
 import sqlite3
 import os
+import hashlib
+import re
+from datetime import datetime
+from PIL import Image
+import pytesseract
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
@@ -10,8 +15,6 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# වාහන කෝඩ් අනුව රියදුරු සහ සියලුම මගීන්ගේ ලොකේෂන් මතක තබා ගැනීමට
-# ව්‍යුහය: { '1000': { 'driver': {...}, 'passengers': { 'user1': {...}, 'user2': {...} } } }
 latest_locations = {}
 
 def init_db():
@@ -28,6 +31,16 @@ def init_db():
             receipt TEXT
         )
     ''')
+    # එකම රිසිට් එක දෙවරක් Upload කිරීම වැළැක්වීමට වගුවක්
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS used_receipts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_hash TEXT UNIQUE,
+            receipt_signature TEXT UNIQUE,
+            username TEXT,
+            uploaded_at TEXT
+        )
+    ''')
     cursor.execute("SELECT * FROM users WHERE username = ?", ('janaka@123',))
     if not cursor.fetchone():
         cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active, receipt) VALUES (?, ?, ?, ?, ?, ?)",
@@ -36,6 +49,57 @@ def init_db():
     conn.close()
 
 init_db()
+
+def verify_receipt_image(filepath, role):
+    try:
+        img = Image.open(filepath)
+        text = pytesseract.image_to_string(img)
+        clean_text = text.replace(',', '').replace(' ', '').lower()
+        raw_lower = text.lower()
+
+        # 1. ගිණුම් අංකය පරීක්ෂාව (100850422975 හෝ අග ඉලක්කම් 2975)
+        if '2975' not in clean_text:
+            return False, "ගිණුම් අංකයේ අග ඉලක්කම් 2975 (100850422975) රිසිට්පතේ පැහැදිලිව නොමැත!", None
+
+        # 2. මුදල් ප්‍රමාණය පරීක්ෂාව (රියදුරු: 500, මගියා: 300)
+        expected_amount = '500' if role == 'driver' else '300'
+        if expected_amount not in clean_text:
+            return False, f"නිවැරදි මුදල් ප්‍රමාණය (Rs. {expected_amount}) රිසිට්පතේ සඳහන් වී නොමැත!", None
+
+        # 3. මූල්‍යමය ගනුදෙනුවක් බව තහවුරු කිරීම
+        financial_keywords = ['deposit', 'transfer', 'success', 'completed', 'lkr', 'rs', 'bank', 'account', 'credited', 'payment', 'slip', 'receipt']
+        if not any(word in raw_lower for word in financial_keywords):
+            return False, "මෙය වලංගු මූල්‍යමය ගනුදෙනු රිසිට්පතක් ලෙස හඳුනාගත නොහැක!", None
+
+        # 4. අද දිනය පරීක්ෂාව (ශ්‍රී ලංකා වේලාව අනුව +5:30)
+        # විවිධ බැංකු රිසිට් වල දිනය සටහන් වන ආකාර (උදා: 2026-11-16, 16/11/2026, 16-11-2026, 16 Nov 2026)
+        now = datetime.utcnow()
+        # UTC + 5:30
+        from datetime import timedelta
+        sl_now = now + timedelta(hours=5, minutes=30)
+        
+        d_formats = [
+            sl_now.strftime("%Y-%m-%d"),
+            sl_now.strftime("%Y/%m/%d"),
+            sl_now.strftime("%d-%m-%Y"),
+            sl_now.strftime("%d/%m/%Y"),
+            sl_now.strftime("%d.%m.%Y"),
+            sl_now.strftime("%d %b %Y").lower(),
+            sl_now.strftime("%d-%b-%Y").lower(),
+            sl_now.strftime("%b %d, %Y").lower()
+        ]
+        if not any(df in raw_lower for df in d_formats):
+            return False, f"රිසිට්පතේ දිනය අද දිනය ({sl_now.strftime('%Y-%m-%d')}) සමඟ නොගැලපේ!", None
+
+        # 5. වේලාව (Time) හඳුනාගෙන Unique Signature එකක් සෑදීම (එකම රිසිට් එක දෙවරක් දැමීම වැළැක්වීමට)
+        time_match = re.search(r'\b([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?\b', text)
+        extracted_time = time_match.group(0) if time_match else "NO_TIME"
+        signature = f"{sl_now.strftime('%Y-%m-%d')}_{extracted_time}_{expected_amount}_2975"
+
+        return True, "සාර්ථකයි", signature
+
+    except Exception as e:
+        return False, "රිසිට්පත කියවීමේදී දෝෂයක් ඇති විය. කරුණාකර පැහැදිලි පින්තූරයක් යොදන්න.", None
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -196,18 +260,47 @@ def payment():
         if 'receipt' in request.files:
             file = request.files['receipt']
             if file.filename != '':
-                filename = file.filename
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                
+                # 1. File Hash එක ගණනය කර පෙර භාවිතා කර ඇත්දැයි බැලීම
+                file_bytes = file.read()
+                file_hash = hashlib.sha256(file_bytes).hexdigest()
+                file.seek(0)
+
                 conn = sqlite3.connect('database.db')
                 cursor = conn.cursor()
+                cursor.execute("SELECT * FROM used_receipts WHERE file_hash = ?", (file_hash,))
+                if cursor.fetchone():
+                    conn.close()
+                    return "<script>alert('මෙම රිසිට්පත දැනටමත් වෙනත් ගිණුමක් සඳහා භාවිතා කර ඇත! නැවත Upload කළ නොහැක.'); window.location.href='/payment';</script>"
+
+                filename = f"{session['username']}_{int(datetime.now().timestamp())}_{file.filename}"
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+
+                # 2. OCR මඟින් රිසිට්පතේ දත්ත පරීක්ෂා කිරීම
+                is_valid, message, signature = verify_receipt_image(filepath, role)
+                if not is_valid:
+                    os.remove(filepath) # වලංගු නොවන ෆයිල් එක ඉවත් කිරීම
+                    conn.close()
+                    return f"<script>alert('අසාර්ථකයි: {message}'); window.location.href='/payment';</script>"
+
+                # 3. එකම වේලාව සහ දිනය ඇති රිසිට් එකක් දෙවරක් දැමීම වැළැක්වීම
+                if signature and "NO_TIME" not in signature:
+                    cursor.execute("SELECT * FROM used_receipts WHERE receipt_signature = ?", (signature,))
+                    if cursor.fetchone():
+                        os.remove(filepath)
+                        conn.close()
+                        return "<script>alert('මෙම ගනුදෙනු රිසිට්පත දැනටමත් භාවිතා කර ඇත! එකම රිසිට්පත දෙවරක් භාවිතා කළ නොහැක.'); window.location.href='/payment';</script>"
+
+                # සියල්ල නිවැරදි නම් රිසිට්පත සේව් කර ගිණුම සක්‍රීය කිරීම
+                cursor.execute("INSERT INTO used_receipts (file_hash, receipt_signature, username, uploaded_at) VALUES (?, ?, ?, ?)",
+                               (file_hash, signature, session['username'], str(datetime.now())))
                 cursor.execute("UPDATE users SET is_active = 1, receipt = ? WHERE username = ?", 
                                (filename, session['username']))
                 conn.commit()
                 conn.close()
                 
                 session['is_active'] = 1
-                return redirect(url_for('index'))
+                return f"<script>alert('ගෙවීම තහවුරු විය! ඔබේ ගිණුම සක්‍රීය කරන ලදී.'); window.location.href='/';</script>"
                 
     return render_template('payment.html', fee=fee, username=session['username'])
 
