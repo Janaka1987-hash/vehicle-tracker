@@ -6,16 +6,26 @@
     <title>රියදුරුගේ පිටුව - Driver Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; background: #f4f6f9; }
         header { background: #007bff; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        #map { height: 60vh; width: 100%; }
-        .status { padding: 10px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 14px; }
-        .panel { background: #f8f9fa; padding: 10px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; }
-        a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; }
-        .badge { padding: 5px 10px; border-radius: 4px; color: white; background: #6c757d; font-size: 13px; margin: 2px; display: inline-block; }
+        #map { height: 55vh; width: 100%; }
+        .status { padding: 8px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 13px; }
+        .panel { background: #ffffff; padding: 10px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; }
+        a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; }
         .btn-alarm { background: #ff9800; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-stop { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
         #alarm-banner { background: #dc3545; color: white; padding: 12px; font-weight: bold; display: none; font-size: 16px; }
+        
+        /* ලොග් වූ මගීන්ගේ ලැයිස්තුව සඳහා CSS */
+        .passenger-box { background: white; margin: 10px; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: left; }
+        .passenger-box h4 { margin: 0 0 8px 0; color: #007bff; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; color: #333; }
+        .badge-online { background: #28a745; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+        .badge-present { background: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-absent { background: #dc3545; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-pending { background: #6c757d; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -31,9 +41,23 @@
         <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarm()">🔕 එලාම් නවත්වන්න (Stop Alarm)</button>
     </div>
 
-    <div class="panel" id="attendance-list">
-        <span style="font-weight:bold;">මගීන්ගේ පැමිණීම:</span>
-        <span id="no-attendance" class="badge">තවමත් ලැබී නැත</span>
+    <!-- වෙනම පෙන්වන ලොග් වූ මගීන්ගේ ලැයිස්තුව -->
+    <div class="passenger-box">
+        <h4>👥 සම්බන්ධ වී සිටින මගීන්ගේ ලැයිස්තුව (<span id="passenger-count">0</span>)</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>මගියාගේ නම</th>
+                    <th>දුර ප්‍රමාණය</th>
+                    <th>පැමිණීම</th>
+                </tr>
+            </thead>
+            <tbody id="passenger-table-body">
+                <tr id="empty-row">
+                    <td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක ලබා ගනිමින් පවතී...</div>
@@ -47,9 +71,10 @@
         let map = L.map('map').setView([7.8731, 80.7718], 13);
         let driverMarker = null;
         let driverCoords = null;
-        let passengerMarkers = {}; // සියලුම මගීන්ගේ මාර්කර්ස්
-        let passengerLines = {};   // සියලුම මගීන් වෙත ඇඳෙන රේඛා
-        let alertedPassengers = {}; // දැනටමත් ඇලර්ට් කළ මගීන්
+        let passengerMarkers = {};
+        let passengerLines = {};
+        let passengerAttendance = {};
+        let alertedPassengers = {};
         let myVehicleCode = "{{ vehicle_code }}".trim();
         let alarmInterval = null;
         let audioCtx = null;
@@ -63,7 +88,6 @@
             iconAnchor: [12, 41]
         });
 
-        // Call එකකදී / Lock Screen එකේදී පවා වැඩ කිරීමට Notification & Audio සක්‍රීය කිරීම
         async function enableBackgroundAlarm() {
             if ("Notification" in window) {
                 await Notification.requestPermission();
@@ -74,7 +98,7 @@
             }
             document.getElementById('enable-alarm-btn').innerText = "✅ එලාම් සක්‍රීයයි";
             document.getElementById('enable-alarm-btn').style.background = "#28a745";
-            alert("එලාම් සහ නොටිෆිකේෂන් සක්‍රීය විය! ඔබ Call එකක සිටියත් හෝ වෙනත් ඇප් එකක සිටියත් මගියෙකු ළඟට ආ විට දැනුම් දෙනු ඇත.");
+            alert("එලාම් සහ නොටිෆිකේෂන් සක්‍රීය විය!");
         }
 
         function triggerAlarm(passengerName, distance) {
@@ -82,12 +106,10 @@
             document.getElementById('alarm-banner').style.display = "block";
             document.getElementById('stop-alarm-btn').style.display = "inline-block";
 
-            // 1. දිගටම ෆෝන් එක Vibrate කිරීම (Call එකකදී දැනීමට)
             if ("vibrate" in navigator) {
                 navigator.vibrate([1000, 400, 1000, 400, 1000]);
             }
 
-            // 2. System Notification (Lock Screen / Call Screen මත පෙන්වීමට)
             if ("Notification" in window && Notification.permission === "granted") {
                 new Notification("🚨 මගියා අසලයි!", {
                     body: `මගී ${passengerName} මීටර් ${Math.round(distance)} ක් ඉදිරියෙන් සිටී.`,
@@ -96,7 +118,6 @@
                 });
             }
 
-            // 3. අඛණ්ඩ සයිරන් හඬ (Web Audio API)
             if (!alarmInterval) {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 alarmInterval = setInterval(() => {
@@ -124,7 +145,6 @@
             if ("vibrate" in navigator) navigator.vibrate(0);
         }
 
-        // මීටර් වලින් දුර මැනීම (Haversine Formula)
         function getDistanceMeters(lat1, lon1, lat2, lon2) {
             const R = 6371e3;
             const p1 = lat1 * Math.PI / 180;
@@ -162,36 +182,64 @@
                     username: "{{ username }}"
                 });
 
-                checkAllDistances();
+                updatePassengerListAndDistances();
             }, (error) => {
                 document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර ලොකේෂන් පර්මිෂන් ලබා දෙන්න.";
             }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
         }
 
-        function checkAllDistances() {
-            if (!driverCoords) return;
-            for (let pUser in passengerMarkers) {
+        function updatePassengerListAndDistances() {
+            let tbody = document.getElementById('passenger-table-body');
+            let pNames = Object.keys(passengerMarkers);
+            document.getElementById('passenger-count').innerText = pNames.length;
+
+            if (pNames.length === 0) return;
+
+            let emptyRow = document.getElementById('empty-row');
+            if (emptyRow) emptyRow.remove();
+
+            pNames.forEach(pUser => {
                 let pLatLng = passengerMarkers[pUser].getLatLng();
-                let dist = getDistanceMeters(driverCoords[0], driverCoords[1], pLatLng.lat, pLatLng.lng);
+                let distText = "ගණනය වෙමින්...";
 
-                // රියදුරු සහ මගියා අතර රේඛාව යාවත්කාලීන කිරීම
-                if (passengerLines[pUser]) {
-                    passengerLines[pUser].setLatLngs([driverCoords, [pLatLng.lat, pLatLng.lng]]);
-                } else {
-                    passengerLines[pUser] = L.polyline([driverCoords, [pLatLng.lat, pLatLng.lng]], { color: '#007bff', weight: 4, dashArray: '8, 8' }).addTo(map);
+                if (driverCoords) {
+                    let dist = getDistanceMeters(driverCoords[0], driverCoords[1], pLatLng.lat, pLatLng.lng);
+                    distText = dist >= 1000 ? (dist / 1000).toFixed(2) + " km" : Math.round(dist) + " m";
+
+                    if (passengerLines[pUser]) {
+                        passengerLines[pUser].setLatLngs([driverCoords, [pLatLng.lat, pLatLng.lng]]);
+                    } else {
+                        passengerLines[pUser] = L.polyline([driverCoords, [pLatLng.lat, pLatLng.lng]], { color: '#007bff', weight: 4, dashArray: '8, 8' }).addTo(map);
+                    }
+
+                    if (dist <= 500 && !alertedPassengers[pUser]) {
+                        alertedPassengers[pUser] = true;
+                        triggerAlarm(pUser, dist);
+                    } else if (dist > 600) {
+                        alertedPassengers[pUser] = false;
+                    }
                 }
 
-                // මීටර් 500 කට අඩු නම් එලාම් එක නාද කිරීම
-                if (dist <= 500 && !alertedPassengers[pUser]) {
-                    alertedPassengers[pUser] = true;
-                    triggerAlarm(pUser, dist);
-                } else if (dist > 600) {
-                    alertedPassengers[pUser] = false;
+                let attStatus = passengerAttendance[pUser] || 'Pending';
+                let attBadge = `<span class="badge-pending">තීරණය කර නැත</span>`;
+                if (attStatus === 'Present') attBadge = `<span class="badge-present">🟢 එනවා</span>`;
+                if (attStatus === 'Absent') attBadge = `<span class="badge-absent">🔴 එන්නේ නැහැ</span>`;
+
+                let rowId = 'row-' + pUser;
+                let row = document.getElementById(rowId);
+                if (!row) {
+                    row = document.createElement('tr');
+                    row.id = rowId;
+                    tbody.appendChild(row);
                 }
-            }
+                row.innerHTML = `
+                    <td><strong>${pUser}</strong> <span class="badge-online">Online</span></td>
+                    <td><strong>${distText}</strong></td>
+                    <td>${attBadge}</td>
+                `;
+            });
         }
 
-        // සියලුම මගීන්ගේ ලොකේෂන් වෙන වෙනම සිතියමේ පෙන්වීම
         socket.on('broadcast_location', (data) => {
             if (data.role === 'passenger' && data.lat && data.lng) {
                 let pUser = data.username;
@@ -199,29 +247,17 @@
                 let pLng = parseFloat(data.lng);
 
                 if (!passengerMarkers[pUser]) {
-                    passengerMarkers[pUser] = L.marker([pLat, pLng], { icon: greenIcon }).addTo(map).bindPopup("මගියා: " + pUser).openPopup();
+                    passengerMarkers[pUser] = L.marker([pLat, pLng], { icon: greenIcon }).addTo(map).bindPopup("මගියා: " + pUser);
                 } else {
                     passengerMarkers[pUser].setLatLng([pLat, pLng]);
                 }
-                checkAllDistances();
+                updatePassengerListAndDistances();
             }
         });
 
-        // සියලුම මගීන්ගේ පැමිණීම වෙන වෙනම පෙන්වීම
         socket.on('broadcast_attendance', (data) => {
-            let noAtt = document.getElementById('no-attendance');
-            if (noAtt) noAtt.style.display = 'none';
-
-            let badgeId = 'att-' + data.username;
-            let badge = document.getElementById(badgeId);
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.id = badgeId;
-                badge.className = 'badge';
-                document.getElementById('attendance-list').appendChild(badge);
-            }
-            badge.innerText = data.username + ": " + (data.status === 'Present' ? 'එනවා' : 'එන්නේ නැහැ');
-            badge.style.background = data.status === 'Present' ? '#28a745' : '#dc3545';
+            passengerAttendance[data.username] = data.status;
+            updatePassengerListAndDistances();
         });
     </script>
 </body>
