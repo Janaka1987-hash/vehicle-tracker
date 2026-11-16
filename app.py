@@ -2,11 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from flask_socketio import SocketIO, emit, join_room
 import sqlite3
 import os
-import hashlib
-import re
 from datetime import datetime, timedelta
-from PIL import Image
-import pytesseract
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
@@ -32,15 +28,6 @@ def init_db():
             expiry_date TEXT
         )
     ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS used_receipts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_hash TEXT UNIQUE,
-            receipt_signature TEXT UNIQUE,
-            username TEXT,
-            uploaded_at TEXT
-        )
-    ''')
     cursor.execute("SELECT * FROM users WHERE username = ?", ('janaka@123',))
     if not cursor.fetchone():
         cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active, receipt, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -49,54 +36,6 @@ def init_db():
     conn.close()
 
 init_db()
-
-def verify_receipt_image(filepath, role):
-    try:
-        img = Image.open(filepath)
-        text = pytesseract.image_to_string(img)
-        clean_text = text.replace(',', '').replace(' ', '').lower()
-        raw_lower = text.lower()
-
-        # 1. ගිණුම් අංකය පරීක්ෂාව (100850422975 හෝ අග ඉලක්කම් 2975)
-        if '2975' not in clean_text:
-            return False, "ගිණුම් අංකයේ අග ඉලක්කම් 2975 (100850422975) රිසිට්පතේ පැහැදිලිව නොමැත!", None
-
-        # 2. මුදල් ප්‍රමාණය පරීක්ෂාව (රියදුරු: 500, මගියා: 300)
-        expected_amount = '500' if role == 'driver' else '300'
-        if expected_amount not in clean_text:
-            return False, f"නිවැරදි මුදල් ප්‍රමාණය (Rs. {expected_amount}) රිසිට්පතේ සඳහන් වී නොමැත!", None
-
-        # 3. මූල්‍යමය ගනුදෙනුවක් බව තහවුරු කිරීම
-        financial_keywords = ['deposit', 'transfer', 'success', 'completed', 'lkr', 'rs', 'bank', 'account', 'credited', 'payment', 'slip', 'receipt']
-        if not any(word in raw_lower for word in financial_keywords):
-            return False, "මෙය වලංගු මූල්‍යමය ගනුදෙනු රිසිට්පතක් ලෙස හඳුනාගත නොහැක!", None
-
-        # 4. අද දිනය පරීක්ෂාව (ශ්‍රී ලංකා වේලාව අනුව +5:30)
-        now = datetime.utcnow()
-        sl_now = now + timedelta(hours=5, minutes=30)
-        
-        d_formats = [
-            sl_now.strftime("%Y-%m-%d"),
-            sl_now.strftime("%Y/%m/%d"),
-            sl_now.strftime("%d-%m-%Y"),
-            sl_now.strftime("%d/%m/%Y"),
-            sl_now.strftime("%d.%m.%Y"),
-            sl_now.strftime("%d %b %Y").lower(),
-            sl_now.strftime("%d-%b-%Y").lower(),
-            sl_now.strftime("%b %d, %Y").lower()
-        ]
-        if not any(df in raw_lower for df in d_formats):
-            return False, f"රිසිට්පතේ දිනය අද දිනය ({sl_now.strftime('%Y-%m-%d')}) සමඟ නොගැලපේ!", None
-
-        # 5. වේලාව සහ Signatures
-        time_match = re.search(r'\b([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?\b', text)
-        extracted_time = time_match.group(0) if time_match else "NO_TIME"
-        signature = f"{sl_now.strftime('%Y-%m-%d')}_{extracted_time}_{expected_amount}_2975"
-
-        return True, "සාර්ථකයි", signature
-
-    except Exception as e:
-        return False, "රිසිට්පත කියවීමේදී දෝෂයක් ඇති විය. කරුණාකර පැහැදිලි පින්තූරයක් යොදන්න.", None
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -124,12 +63,11 @@ def index():
 
         now = datetime.utcnow() + timedelta(hours=5, minutes=30)
 
-        # කල් ඉකුත් වී ඇත්දැයි පරීක්ෂා කිරීම (Expiry Check)
+        # දින 30 කල් ඉකුත් වී ඇත්දැයි පරීක්ෂා කිරීම (Expiry Check)
         if is_active == 1 and expiry_date_str:
             try:
                 expiry_dt = datetime.strptime(expiry_date_str, '%Y-%m-%d %H:%M:%S')
                 if now > expiry_dt:
-                    # කල් ඉකුත් වී නම් is_active 0 කර payment පිටුවට යැවීම
                     conn = sqlite3.connect('database.db')
                     cursor = conn.cursor()
                     cursor.execute("UPDATE users SET is_active = 0 WHERE username = ?", (username,))
@@ -205,7 +143,8 @@ def toggle_status(user_id):
     if result:
         current_status = result[0]
         new_status = 0 if current_status == 1 else 1
-        new_expiry = (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S') if new_status == 1 else None
+        # ඇක්ටිව් කළ විට හරියටම දින 30 කට පසු Expiry Date එක සටහන් වේ
+        new_expiry = (datetime.utcnow() + timedelta(hours=5, minutes=30) + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S') if new_status == 1 else None
         cursor.execute("UPDATE users SET is_active = ?, expiry_date = ? WHERE id = ?", (new_status, new_expiry, user_id))
         conn.commit()
     
@@ -286,47 +225,18 @@ def payment():
         if 'receipt' in request.files:
             file = request.files['receipt']
             if file.filename != '':
-                file_bytes = file.read()
-                file_hash = hashlib.sha256(file_bytes).hexdigest()
-                file.seek(0)
-
-                conn = sqlite3.connect('database.db')
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM used_receipts WHERE file_hash = ?", (file_hash,))
-                if cursor.fetchone():
-                    conn.close()
-                    return "<script>alert('මෙම රිසිට්පත දැනටමත් වෙනත් ගිණුමක් සඳහා භාවිතා කර ඇත! නැවත Upload කළ නොහැක.'); window.location.href='/payment';</script>"
-
                 filename = f"{session['username']}_{int(datetime.now().timestamp())}_{file.filename}"
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
 
-                # OCR පරීක්ෂාව
-                is_valid, message, signature = verify_receipt_image(filepath, role)
-                if not is_valid:
-                    os.remove(filepath)
-                    conn.close()
-                    return f"<script>alert('අසාර්ථකයි: {message}'); window.location.href='/payment';</script>"
-
-                if signature and "NO_TIME" not in signature:
-                    cursor.execute("SELECT * FROM used_receipts WHERE receipt_signature = ?", (signature,))
-                    if cursor.fetchone():
-                        os.remove(filepath)
-                        conn.close()
-                        return "<script>alert('මෙම ගනුදෙනු රිසිට්පත දැනටමත් භාවිතා කර ඇත! එකම රිසිට්පත දෙවරක් භාවිතා කළ නොහැක.'); window.location.href='/payment';</script>"
-
-                # දින 30 ක කල් ඉකුත්වීමේ දිනය (Expiry Date) ගණනය කිරීම
-                expiry_dt = (datetime.utcnow() + timedelta(hours=5, minutes=30) + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
-
-                cursor.execute("INSERT INTO used_receipts (file_hash, receipt_signature, username, uploaded_at) VALUES (?, ?, ?, ?)",
-                               (file_hash, signature, session['username'], str(datetime.now())))
-                cursor.execute("UPDATE users SET is_active = 1, receipt = ?, expiry_date = ? WHERE username = ?", 
-                               (filename, expiry_dt, session['username']))
+                conn = sqlite3.connect('database.db')
+                cursor = conn.cursor()
+                # රිසිට්පත පමණක් සේව් කර Admin අනුමැතිය සඳහා යොමු කරයි
+                cursor.execute("UPDATE users SET receipt = ? WHERE username = ?", (filename, session['username']))
                 conn.commit()
                 conn.close()
                 
-                session['is_active'] = 1
-                return f"<script>alert('ගෙවීම තහවුරු විය! ඔබේ ගිණුම ඉදිරි දින 30 සඳහා සක්‍රීය කරන ලදී.'); window.location.href='/';</script>"
+                return "<script>alert('රිසිට්පත සාර්ථකව උඩුගත කරන ලදී! Owner විසින් එය පරීක්ෂා කර ඉක්මනින් ගිණුම සක්‍රීය කරනු ඇත.'); window.location.href='/payment';</script>"
                 
     return render_template('payment.html', fee=fee, username=session['username'])
 
