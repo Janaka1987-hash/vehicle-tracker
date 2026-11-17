@@ -8,7 +8,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*")
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 latest_locations = {}
