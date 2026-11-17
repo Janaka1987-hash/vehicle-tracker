@@ -8,56 +8,64 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; background: #f4f6f9; }
         header { background: #007bff; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        #map { height: 55vh; width: 100%; }
+        #map { height: 62vh; width: 100%; transition: height 0.3s ease; }
         .status { padding: 8px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 13px; }
         .panel { background: #ffffff; padding: 10px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; }
         a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; }
         .btn-alarm { background: #ff9800; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-stop { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
+        .btn-toggle-list { background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         #alarm-banner { background: #dc3545; color: white; padding: 12px; font-weight: bold; display: none; font-size: 16px; }
         
-        /* ලොග් වූ මගීන්ගේ ලැයිස්තුව සඳහා CSS */
-        .passenger-box { background: white; margin: 10px; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: left; }
-        .passenger-box h4 { margin: 0 0 8px 0; color: #007bff; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #f8f9fa; color: #333; }
-        .badge-online { background: #28a745; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
-        .badge-present { background: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
-        .badge-absent { background: #dc3545; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
-        .badge-pending { background: #6c757d; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        /* මගීන්ගේ ලැයිස්තුව සිතියම නොවැසෙන පරිදි Scroll Box එකක් ලෙස */
+        .passenger-box { background: white; margin: 8px 10px; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: left; }
+        .passenger-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
+        .passenger-header h4 { margin: 0; color: #007bff; font-size: 15px; }
+        .table-scroll-container { max-height: 140px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 7px 8px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; color: #333; position: sticky; top: 0; z-index: 1; }
+        .badge-online { background: #28a745; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; }
+        .badge-present { background: #28a745; color: white; padding: 3px 7px; border-radius: 4px; font-size: 11px; }
+        .badge-absent { background: #dc3545; color: white; padding: 3px 7px; border-radius: 4px; font-size: 11px; }
+        .badge-pending { background: #6c757d; color: white; padding: 3px 7px; border-radius: 4px; font-size: 11px; }
     </style>
 </head>
 <body>
     <header>
         <h3 style="margin:0; font-size: 16px;">{{ username }} (රියදුරු - {{ vehicle_code }})</h3>
-        <a href="/logout" class="logout">ඉවත් වන්න</a>
+        <a href="/logout" class="logout" onclick="notifyLogout()">ඉවත් වන්න</a>
     </header>
 
     <div id="alarm-banner">🚨 අවධානයයි! මගියෙකු මීටර් 500 ක් ඇතුළත සිටී!</div>
 
     <div class="panel">
-        <button id="enable-alarm-btn" class="btn-alarm" onclick="enableBackgroundAlarm()">🔔 එලාම් සක්‍රීය කරන්න (Enable Alarm)</button>
-        <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarm()">🔕 එලාම් නවත්වන්න (Stop Alarm)</button>
+        <button id="enable-alarm-btn" class="btn-alarm" onclick="enableBackgroundAlarm()">🔔 එලාම් සක්‍රීය කරන්න</button>
+        <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarm()">🔕 එලාම් නවත්වන්න</button>
+        <button id="toggle-list-btn" class="btn-toggle-list" onclick="togglePassengerList()">📋 ලැයිස්තුව සඟවන්න</button>
     </div>
 
-    <!-- වෙනම පෙන්වන ලොග් වූ මගීන්ගේ ලැයිස්තුව -->
-    <div class="passenger-box">
-        <h4>👥 සම්බන්ධ වී සිටින මගීන්ගේ ලැයිස්තුව (<span id="passenger-count">0</span>)</h4>
-        <table>
-            <thead>
-                <tr>
-                    <th>මගියාගේ නම</th>
-                    <th>දුර ප්‍රමාණය</th>
-                    <th>පැමිණීම</th>
-                </tr>
-            </thead>
-            <tbody id="passenger-table-body">
-                <tr id="empty-row">
-                    <td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td>
-                </tr>
-            </tbody>
-        </table>
+    <!-- Scroll කළ හැකි සහ සැඟවිය හැකි මගීන්ගේ ලැයිස්තුව -->
+    <div class="passenger-box" id="passenger-list-container">
+        <div class="passenger-header">
+            <h4>👥 සම්බන්ධ වී සිටින මගීන් (<span id="passenger-count">0</span>)</h4>
+        </div>
+        <div class="table-scroll-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>මගියාගේ නම</th>
+                        <th>දුර</th>
+                        <th>පැමිණීම</th>
+                    </tr>
+                </thead>
+                <tbody id="passenger-table-body">
+                    <tr id="empty-row">
+                        <td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක ලබා ගනිමින් පවතී...</div>
@@ -78,6 +86,7 @@
         let myVehicleCode = "{{ vehicle_code }}".trim();
         let alarmInterval = null;
         let audioCtx = null;
+        let isListVisible = true;
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -88,11 +97,37 @@
             iconAnchor: [12, 41]
         });
 
+        // ලැයිස්තුව සැඟවීමට හෝ පෙන්වීමට (සිතියම විශාල කර බැලීමට)
+        function togglePassengerList() {
+            const container = document.getElementById('passenger-list-container');
+            const btn = document.getElementById('toggle-list-btn');
+            const mapDiv = document.getElementById('map');
+
+            if (isListVisible) {
+                container.style.display = 'none';
+                btn.innerText = '📋 ලැයිස්තුව පෙන්වන්න';
+                mapDiv.style.height = '78vh';
+            } else {
+                container.style.display = 'block';
+                btn.innerText = '📋 ලැයිස්තුව සඟවන්න';
+                mapDiv.style.height = '62vh';
+            }
+            isListVisible = !isListVisible;
+            setTimeout(() => { map.invalidateSize(); }, 350);
+        }
+
+        function notifyLogout() {
+            socket.emit('user_logout', { username: "{{ username }}", role: 'driver', vehicle_code: myVehicleCode });
+        }
+
         async function enableBackgroundAlarm() {
             if ("Notification" in window) {
                 await Notification.requestPermission();
             }
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
             if ('wakeLock' in navigator) {
                 try { await navigator.wakeLock.request('screen'); } catch (e) {}
             }
@@ -120,6 +155,8 @@
 
             if (!alarmInterval) {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
                 alarmInterval = setInterval(() => {
                     let osc = audioCtx.createOscillator();
                     let gain = audioCtx.createGain();
@@ -156,44 +193,77 @@
         }
 
         socket.on('connect', () => {
-            socket.emit('join', { vehicle_code: myVehicleCode });
+            socket.emit('join', { vehicle_code: myVehicleCode, username: "{{ username }}", role: 'driver' });
         });
 
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition((position) => {
-                let lat = position.coords.latitude;
-                let lng = position.coords.longitude;
-                driverCoords = [lat, lng];
+        // සියලුම Browsers සඳහා Cross-Browser GPS Location ලබා ගැනීම
+        function startGPSTracking() {
+            if (!("geolocation" in navigator)) {
+                document.getElementById('status').innerText = "ඔබගේ බ්‍රව්සරය GPS සඳහා සහාය නොදක්වයි.";
+                return;
+            }
 
-                if (!driverMarker) {
-                    driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
-                    map.setView([lat, lng], 15);
-                } else {
-                    driverMarker.setLatLng([lat, lng]);
-                }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => { handlePositionSuccess(pos); },
+                (err) => { console.warn("Initial GPS fallback:", err.message); },
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+            );
 
-                document.getElementById('status').innerText = "සජීවී ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
-
-                socket.emit('update_location', {
-                    role: 'driver',
-                    lat: lat,
-                    lng: lng,
-                    vehicle_code: myVehicleCode,
-                    username: "{{ username }}"
-                });
-
-                updatePassengerListAndDistances();
-            }, (error) => {
-                document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර ලොකේෂන් පර්මිෂන් ලබා දෙන්න.";
-            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+            navigator.geolocation.watchPosition(
+                handlePositionSuccess,
+                (error) => {
+                    let msg = "GPS දෝෂයකි! ";
+                    if (error.code === error.PERMISSION_DENIED) {
+                        msg += "කරුණාකර Browser Settings වලින් Location අවසරය ලබා දෙන්න.";
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        msg += "දුරකථනයේ Location (GPS) සක්‍රීය (ON) කරන්න.";
+                    } else {
+                        msg += "සංඥා ලබා ගැනීම ප්‍රමාදයි, මදක් රැඳී සිටින්න...";
+                    }
+                    document.getElementById('status').innerText = msg;
+                },
+                { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+            );
         }
+
+        function handlePositionSuccess(position) {
+            let lat = position.coords.latitude;
+            let lng = position.coords.longitude;
+            driverCoords = [lat, lng];
+
+            if (!driverMarker) {
+                driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
+                map.setView([lat, lng], 15);
+            } else {
+                driverMarker.setLatLng([lat, lng]);
+            }
+
+            document.getElementById('status').innerText = "සජීවී ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
+
+            socket.emit('update_location', {
+                role: 'driver',
+                lat: lat,
+                lng: lng,
+                vehicle_code: myVehicleCode,
+                username: "{{ username }}"
+            });
+
+            updatePassengerListAndDistances();
+        }
+
+        startGPSTracking();
 
         function updatePassengerListAndDistances() {
             let tbody = document.getElementById('passenger-table-body');
             let pNames = Object.keys(passengerMarkers);
             document.getElementById('passenger-count').innerText = pNames.length;
 
-            if (pNames.length === 0) return;
+            if (pNames.length === 0) {
+                if (!document.getElementById('empty-row')) {
+                    tbody.innerHTML = `<tr id="empty-row"><td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td></tr>`;
+                }
+                return;
+            }
 
             let emptyRow = document.getElementById('empty-row');
             if (emptyRow) emptyRow.remove();
@@ -257,6 +327,24 @@
 
         socket.on('broadcast_attendance', (data) => {
             passengerAttendance[data.username] = data.status;
+            updatePassengerListAndDistances();
+        });
+
+        // මගියෙකු Logout වූ විට හෝ Disconnect වූ විට සිතියමෙන් සහ ලැයිස්තුවෙන් ඉවත් කිරීම
+        socket.on('remove_user', (data) => {
+            let pUser = data.username;
+            if (passengerMarkers[pUser]) {
+                map.removeLayer(passengerMarkers[pUser]);
+                delete passengerMarkers[pUser];
+            }
+            if (passengerLines[pUser]) {
+                map.removeLayer(passengerLines[pUser]);
+                delete passengerLines[pUser];
+            }
+            delete alertedPassengers[pUser];
+            let row = document.getElementById('row-' + pUser);
+            if (row) row.remove();
+            
             updatePassengerListAndDistances();
         });
     </script>
