@@ -138,7 +138,6 @@ def owner_dashboard():
     
     return render_template('owner_dashboard.html', username=session['username'], users=users)
 
-# --- ඩේටාබේස් බැකප් එක ඩවුන්ලෝඩ් කරගැනීමේ පහසුකම ---
 @app.route('/download_backup')
 def download_backup():
     if 'username' not in session or session.get('role') != 'owner':
@@ -264,14 +263,12 @@ def logout():
     role = session.get('role')
     vehicle_code = str(session.get('vehicle_code', '')).strip()
 
-    # සර්වර් එකේ මතකයෙන් (latest_locations) ඉවත් කිරීම
     if vehicle_code in latest_locations:
         if role == 'driver' and 'driver' in latest_locations[vehicle_code]:
             del latest_locations[vehicle_code]['driver']
         elif role == 'passenger' and 'passengers' in latest_locations[vehicle_code]:
             latest_locations[vehicle_code]['passengers'].pop(username, None)
 
-    # සම්බන්ධ වී සිටින අනෙක් අයගේ සිතියමෙන් ඉවත් කිරීමට දැනුම් දීම
     if username and vehicle_code:
         socketio.emit('remove_user', {'username': username, 'role': role}, room=vehicle_code)
 
@@ -331,7 +328,5 @@ def handle_attendance(data):
         emit('broadcast_attendance', data, room=vehicle_code)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port)if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host='0.0.0.0', port=port)
