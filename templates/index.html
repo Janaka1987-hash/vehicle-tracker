@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="si">
 <head>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Location & Proximity Alarm</title>
@@ -56,7 +57,8 @@
 
         function toggleRole() {
             isPassenger = !isPassenger;
-            document.getElementById('roleBtninnerText').innerText = isPassenger ? "මම මගියෙක් (Passenger)" : "මම රියදුරෙක් (Driver)";
+            // මෙතන roleBtn කියලා හරියටම අයිඩී එක දුන්නා
+            document.getElementById('roleBtn').innerText = isPassenger ? "මම මගියෙක් (Passenger)" : "මම රියදුරෙක් (Driver)";
             alert(isPassenger ? "දැන් ඔබ මගියෙක් ලෙස ක්‍රියා කරයි." : "දැන් ඔබ රියදුරෙක් ලෙස ක්‍රියා කරයි.");
         }
 
@@ -98,7 +100,7 @@
                 // මීටර් 500කට වඩා අඩු නම් Alarm එක ක්‍රියාත්මක වේ
                 if (distance <= 500) {
                     playAlarm();
-                    console.alert("අවධානයයි! මගියෙකු අසල ළඟා වෙමින් පවතී!");
+                    console.log("අවධානයයි! මගියෙකු අසල ළඟා වෙමින් පවතී!"); // console.alert වෙනුවට console.log හෝ alert పాவிக்க හැක
                 }
             }
         });
