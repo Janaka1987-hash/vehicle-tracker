@@ -260,6 +260,21 @@ def payment():
 
 @app.route('/logout')
 def logout():
+    username = session.get('username')
+    role = session.get('role')
+    vehicle_code = str(session.get('vehicle_code', '')).strip()
+
+    # සර්වර් එකේ මතකයෙන් (latest_locations) ඉවත් කිරීම
+    if vehicle_code in latest_locations:
+        if role == 'driver' and 'driver' in latest_locations[vehicle_code]:
+            del latest_locations[vehicle_code]['driver']
+        elif role == 'passenger' and 'passengers' in latest_locations[vehicle_code]:
+            latest_locations[vehicle_code]['passengers'].pop(username, None)
+
+    # සම්බන්ධ වී සිටින අනෙක් අයගේ සිතියමෙන් ඉවත් කිරීමට දැනුම් දීම
+    if username and vehicle_code:
+        socketio.emit('remove_user', {'username': username, 'role': role}, room=vehicle_code)
+
     session.clear()
     return redirect(url_for('login'))
 
@@ -275,6 +290,21 @@ def on_join(data):
             if 'passengers' in room_data:
                 for p_user, p_data in room_data['passengers'].items():
                     emit('broadcast_location', p_data)
+
+@socketio.on('user_logout')
+def handle_user_logout(data):
+    username = data.get('username')
+    role = data.get('role')
+    vehicle_code = str(data.get('vehicle_code', '')).strip()
+    
+    if vehicle_code in latest_locations:
+        if role == 'driver' and 'driver' in latest_locations[vehicle_code]:
+            del latest_locations[vehicle_code]['driver']
+        elif role == 'passenger' and 'passengers' in latest_locations[vehicle_code]:
+            latest_locations[vehicle_code]['passengers'].pop(username, None)
+            
+    if username and vehicle_code:
+        emit('remove_user', {'username': username, 'role': role}, room=vehicle_code)
 
 @socketio.on('update_location')
 def handle_location(data):
@@ -301,5 +331,7 @@ def handle_attendance(data):
         emit('broadcast_attendance', data, room=vehicle_code)
 
 if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    socketio.run(app, host='0.0.0.0', port=port)if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host='0.0.0.0', port=port)
