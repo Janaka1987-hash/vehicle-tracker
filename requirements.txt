@@ -1,5 +1,4 @@
-flask
-flask-socketio
-pytesseract
-Pillow
+Flask
+Flask-SocketIO
+eventlet
 gunicorn
