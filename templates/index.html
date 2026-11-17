@@ -57,7 +57,6 @@
 
         function toggleRole() {
             isPassenger = !isPassenger;
-            // මෙතන roleBtn කියලා හරියටම අයිඩී එක දුන්නා
             document.getElementById('roleBtn').innerText = isPassenger ? "මම මගියෙක් (Passenger)" : "මම රියදුරෙක් (Driver)";
             alert(isPassenger ? "දැන් ඔබ මගියෙක් ලෙස ක්‍රියා කරයි." : "දැන් ඔබ රියදුරෙක් ලෙස ක්‍රියා කරයි.");
         }
@@ -100,7 +99,7 @@
                 // මීටර් 500කට වඩා අඩු නම් Alarm එක ක්‍රියාත්මක වේ
                 if (distance <= 500) {
                     playAlarm();
-                    console.log("අවධානයයි! මගියෙකු අසල ළඟා වෙමින් පවතී!"); // console.alert වෙනුවට console.log හෝ alert పాவிக்க හැක
+                    console.log("අවධානයයි! මගියෙකු අසල ළඟා වෙමින් පවතී!");
                 }
             }
         });
