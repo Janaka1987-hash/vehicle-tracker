@@ -15,13 +15,13 @@
         .btn-danger { background: #e74c3c; color: white; }
         .btn-warning { background: #f39c12; color: white; }
         .btn-primary { background: #3498db; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
         
         .driver-card { background: #ffffff; border: 1px solid #cbd5e1; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); overflow: hidden; }
         .driver-button-header { background: #f8f9fa; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; }
         .driver-button-header:hover { background: #e2e8f0; }
         .driver-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin: 0; }
         
-        /* මගීන් පෙන්වන පෙට්ටිය මුලින් සම්පූර්ණයෙන්ම සඟවා තැබීම */
         .passengers-container { display: none; padding: 15px 20px; background: #ffffff; border-top: 1px solid #e2e8f0; }
         .passenger-item { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px 15px; margin: 8px 0; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; }
         
@@ -31,7 +31,7 @@
 <body>
     <div class="container">
         <header>
-            <h3 style="margin:0; color: white;">👑 Owner Dashboard ({{ username }})</h3>
+            <h3 style="margin:0; color: white;">👑 Owner Dashboard ({{ username }})</h3>[cite: 1]
             <div>
                 <a href="/download_backup" class="btn btn-warning" style="margin-right: 10px;">📥 Download DB Backup</a>[cite: 1]
                 <a href="/logout" class="logout">Logout</a>[cite: 1]
@@ -46,7 +46,7 @@
                 {% if u[3] == 'driver' %}
                     {% set ns.driver_found = true %}
                     <div class="driver-card">
-                        <!-- මෙහි onclick මඟින් ඍජුවම අදාළ ID එක සහිත box එක පෙන්වීම/සැඟවීම සිදු කරයි -->
+                        <!-- Driver Header (Clickable to Toggle Passengers) -->
                         <div class="driver-button-header" onclick="
                             var box = document.getElementById('passengers-{{ u[0] }}');
                             if (box.style.display === 'none' || box.style.display === '') {
@@ -60,18 +60,19 @@
                                 <span style="font-size: 12px; color: #666;">Status: {% if u[5] == 1 %}<b style="color:green;">Active</b>{% else %}<b style="color:red;">Inactive</b>{% endif %}</span>[cite: 1]
                             </div>
                             <div>
-                                <span style="font-size: 13px; color: #3498db; font-weight: bold; margin-right: 15px;">👥 Click to View Passengers ▾</span>
-                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 5px 10px; font-size: 11px;" onclick="event.stopPropagation();">
+                                <span style="font-size: 13px; color: #3498db; font-weight: bold; margin-right: 10px;">👥 View Passengers ▾</span>
+                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 5px 8px; font-size: 11px;" onclick="event.stopPropagation();">✏️ Edit</a>
+                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 5px 8px; font-size: 11px;" onclick="event.stopPropagation();">
                                     {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
                                 </a>[cite: 1]
                                 {% if u[6] and u[6] != 'Owner Account (Free)' %}
-                                    <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 5px 10px; font-size: 11px;" onclick="event.stopPropagation();">📄 Receipt</a>[cite: 1]
+                                    <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 5px 8px; font-size: 11px;" onclick="event.stopPropagation();">📄 Receipt</a>[cite: 1]
                                 {% endif %}
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 10px; font-size: 11px;" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this driver?');">Delete</a>[cite: 1]
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this driver?');">Delete</a>[cite: 1]
                             </div>
                         </div>
 
-                        <!-- අදාළ රියදුරුගේ ID එක සමග සම්බන්ධ වූ මගීන් පෙට්ටිය -->
+                        <!-- Passengers List Box -->
                         <div id="passengers-{{ u[0] }}" class="passengers-container">
                             <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: bold; color: #475569;">Assigned Passengers for Vehicle Code: {{ u[4] }}</p>
                             
@@ -92,6 +93,7 @@
                                             {% if p[6] and p[6] != 'Owner Account (Free)' %}
                                                 <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt</a>[cite: 1]
                                             {% endif %}
+                                            <a href="/edit_user/{{ p[0] }}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">✏️ Edit</a>
                                             <a href="/toggle_status/{{ p[0] }}" class="btn {% if p[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">
                                                 {% if p[5] == 1 %}Deactivate{% else %}Activate{% endif %}
                                             </a>[cite: 1]
@@ -112,6 +114,46 @@
             {% if not ns.driver_found %}
                 <p style="color: #777;">No drivers registered in the system yet.</p>
             {% endif %}
+        </div>
+
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ddd;">
+
+        <h2>📋 Complete User Management Table</h2>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; background: white;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 10px; border-bottom: 1px solid #ddd;">Username</th>[cite: 1]
+                        <th style="padding: 10px; border-bottom: 1px solid #ddd;">Role</th>[cite: 1]
+                        <th style="padding: 10px; border-bottom: 1px solid #ddd;">Vehicle Code</th>[cite: 1]
+                        <th style="padding: 10px; border-bottom: 1px solid #ddd;">Status</th>[cite: 1]
+                        <th style="padding: 10px; border-bottom: 1px solid #ddd;">Actions</th>[cite: 1]
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>{{ u[1] }}</strong></td>[cite: 1]
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ u[3] }}</td>[cite: 1]
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ u[4] if u[4] else '-' }}</td>[cite: 1]
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                            {% if u[5] == 1 %}Active{% else %}Inactive{% endif %}
+                        </td>[cite: 1]
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                            {% if u[3] != 'owner' %}
+                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;">✏️ Edit</a>
+                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 3px 8px; font-size: 11px;">
+                                    {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
+                                </a>[cite: 1]
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="return confirm('Delete this user?');">Delete</a>[cite: 1]
+                            {% else %}
+                                <span style="color: #777; font-size: 11px;">Master</span>[cite: 1]
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </body>
