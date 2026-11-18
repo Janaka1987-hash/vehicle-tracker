@@ -327,6 +327,14 @@ def handle_attendance(data):
     if vehicle_code:
         emit('broadcast_attendance', data, room=vehicle_code)
 
+# මගියාගේ ගමන අවසන් වූ විට හෝ එලාම් ඔෆ් කළ විට ඩ්‍රයිවර්ගේ මැප් එකෙන් ඉවත් කිරීම සඳහා
+@socketio.on('complete_passenger_trip')
+def handle_complete_passenger_trip(data):
+    p_name = data.get('passenger_name')
+    v_code = data.get('vehicle_code')
+    if p_name and v_code:
+        emit('remove_user', {'username': p_name}, room=v_code)
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host='0.0.0.0', port=port)
