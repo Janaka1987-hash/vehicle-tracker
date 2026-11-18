@@ -55,5 +55,21 @@
             <p class="reg-text">ගිණුමක් නැද්ද? <a href="/register">ලියාපදිංචි වන්න (Register)</a></p>
         </div>
     </div>
+    <script>
+    // පිටුව ලෝඩ් වන විට කලින් ලොග් වී ඇද්දැයි පරීක්ෂා කිරීම
+    window.onload = function() {
+        let savedUser = localStorage.getItem('ridesync_user');
+        let savedRole = localStorage.getItem('ridesync_role');
+        if (savedUser && savedRole) {
+            if (savedRole === 'driver') {
+                window.location.href = '/driver_map';
+            } else if (savedRole === 'passenger') {
+                window.location.href = '/passenger_map';
+            } else if (savedRole === 'owner') {
+                window.location.href = '/owner_dashboard';
+            }
+        }
+    };
+</script>
 </body>
 </html>
