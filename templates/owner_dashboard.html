@@ -16,6 +16,7 @@
         .btn-warning { background: #f39c12; color: white; }
         .btn-primary { background: #3498db; color: white; }
         .btn-secondary { background: #6c757d; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; background: white; border-radius: 6px; overflow: hidden; }
         th, td { padding: 12px 15px; border-bottom: 1px solid #eef2f3; text-align: left; }
@@ -33,10 +34,6 @@
         
         .passengers-container { display: none; padding: 15px 20px; background: #ffffff; border-top: 1px solid #e2e8f0; }
         .passenger-item { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px 15px; margin: 8px 0; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; }
-        
-        /* Table clickable row styling */
-        .clickable-row { cursor: pointer; transition: background 0.2s; }
-        .clickable-row:hover { background: #f1f5f9; }
         
         a.logout { color: white; background: #e74c3c; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; }
     </style>
@@ -129,7 +126,7 @@
 
         <hr style="margin: 40px 0; border: 0; border-top: 1px solid #ddd;">
 
-        <h2>📋 Complete User Management Table (Click a driver row to expand passengers)</h2>
+        <h2>📋 Complete User Management Table</h2>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
@@ -145,15 +142,8 @@
                 </thead>
                 <tbody>
                     {% for u in users %}
-                    <tr {% if u[3] == 'driver' %}class="clickable-row" onclick="
-                        var box = document.getElementById('table-passengers-{{ u[0] }}');
-                        if (box.style.display === 'none' || box.style.display === '') {
-                            box.style.display = 'table-row';
-                        } else {
-                            box.style.display = 'none';
-                        }
-                    "{% endif %}>
-                        <td><strong>{{ u[1] }}</strong> {% if u[3] == 'driver' %}<span style="color: #3498db; font-size: 11px;">(Click to expand ▾)</span>{% endif %}</td>
+                    <tr>
+                        <td><strong>{{ u[1] }}</strong></td>
                         <td>
                             {% if u[3] == 'owner' %} 👑 Owner
                             {% elif u[3] == 'driver' %} 🚐 Driver
@@ -177,21 +167,32 @@
                         </td>
                         <td>
                             {% if u[3] != 'owner' %}
-                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="event.stopPropagation();">✏️ Edit</a>
-                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="event.stopPropagation();">
+                                <!-- Driver එකෙකුට පමණක් ටේබල් එක ඇතුළේ View Passengers බොත්තම පෙන්වීම -->
+                                {% if u[3] == 'driver' %}
+                                    <button class="btn btn-info" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="
+                                        var box = document.getElementById('table-passengers-{{ u[0] }}');
+                                        if (box.style.display === 'none' || box.style.display === '') {
+                                            box.style.display = 'table-row';
+                                        } else {
+                                            box.style.display = 'none';
+                                        }
+                                    ">👥 View Passengers</button>
+                                {% endif %}
+                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">✏️ Edit</a>
+                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">
                                     {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
                                 </a>
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this user?');">Delete</a>
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this user?');">Delete</a>
                             {% else %}
                                 <span style="color: #777; font-size: 11px;">Master Account</span>
                             {% endif %}
                         </td>
                     </tr>
 
-                    <!-- Hidden expandable row for driver's passengers inside the table -->
+                    <!-- ටේබල් එක ඇතුළේ රියදුරුට යටින් මගීන් විවෘත වන කොටස -->
                     {% if u[3] == 'driver' %}
                     <tr id="table-passengers-{{ u[0] }}" style="display: none; background: #f8f9fa;">
-                        <td colspan="7" style="padding: 15px; border-left: 4px solid #3498db;">
+                        <td colspan="7" style="padding: 15px; border-left: 4px solid #17a2b8;">
                             <strong style="color: #2c3e50;">👥 Passengers under Driver {{ u[1] }} (Vehicle Code: {{ u[4] }}):</strong>
                             <div style="margin-top: 8px;">
                                 {% set found_t_passengers = false %}
