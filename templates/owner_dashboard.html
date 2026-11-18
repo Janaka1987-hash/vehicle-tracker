@@ -28,8 +28,7 @@
         .driver-section { margin-top: 30px; }
         .driver-card { background: #ffffff; border: 1px solid #cbd5e1; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); overflow: hidden; }
         
-        .driver-button-header { background: #f8f9fa; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; flex-wrap: wrap; }
-        .driver-button-header:hover { background: #e2e8f0; }
+        .driver-button-header { background: #f8f9fa; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
         .driver-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin: 0; }
         
         .passengers-container { display: none; padding: 15px 20px; background: #ffffff; border-top: 1px solid #e2e8f0; }
@@ -41,14 +40,14 @@
 <body>
     <div class="container">
         <header>
-            <h3 style="margin:0; color: white;">👑 Owner Dashboard ({{ username }})</h3>
+            <h3 style="margin:0; color: white;">👑 Owner Dashboard ({{ username }})[cite: 1]</h3>
             <div>
-                <a href="/download_backup" class="btn btn-warning" style="margin-right: 10px;">📥 Download DB Backup</a>
-                <a href="/logout" class="logout">Logout</a>
+                <a href="/download_backup" class="btn btn-warning" style="margin-right: 10px;">📥 Download DB Backup[cite: 1]</a>
+                <a href="/logout" class="logout">Logout[cite: 1]</a>
             </div>
         </header>
 
-        <h2>🚐 Drivers List (Click on a driver to view their passengers)</h2>
+        <h2>🚐 Drivers List & Their Passengers</h2>
         
         <div class="driver-section">
             {% set ns = namespace(driver_found=false) %}
@@ -56,28 +55,29 @@
                 {% if u[3] == 'driver' %}
                     {% set ns.driver_found = true %}
                     <div class="driver-card">
-                        <div class="driver-button-header" onclick="
-                            var box = document.getElementById('passengers-{{ u[0] }}');
-                            if (box.style.display === 'none' || box.style.display === '') {
-                                box.style.display = 'block';
-                            } else {
-                                box.style.display = 'none';
-                            }
-                        ">
+                        <div class="driver-button-header">
                             <div>
                                 <p class="driver-title">🚐 Driver: <strong>{{ u[1] }}</strong> &nbsp;|&nbsp; Vehicle Code: <span style="color: #e67e22;">{{ u[4] }}</span></p>
-                                <span style="font-size: 12px; color: #666;">Status: {% if u[5] == 1 %}<b style="color:green;">Active</b>{% else %}<b style="color:red;">Inactive</b>{% endif %}</span>
+                                <span style="font-size: 12px; color: #666;">Status: {% if u[5] == 1 %}<b style="color:green;">Active[cite: 1]</b>{% else %}<b style="color:red;">Inactive</b>{% endif %}</span>
                             </div>
                             <div>
-                                <span style="font-size: 13px; color: #3498db; font-weight: bold; margin-right: 10px;">👥 View Passengers ▾</span>
-                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">✏️ Edit</a>
-                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">
-                                    {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
+                                <button class="btn btn-info" style="padding: 5px 10px; font-size: 11px; margin-right: 5px;" onclick="
+                                    var box = document.getElementById('passengers-{{ u[0] }}');
+                                    if (box.style.display === 'none' || box.style.display === '') {
+                                        box.style.display = 'block';
+                                    } else {
+                                        box.style.display = 'none';
+                                    }
+                                ">👥 View Passengers</button>
+                                
+                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;">✏️ Edit[cite: 1]</a>
+                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;">
+                                    {% if u[5] == 1 %}Deactivate[cite: 1]{% else %}Activate[cite: 1]{% endif %}
                                 </a>
                                 {% if u[6] and u[6] != 'Owner Account (Free)' %}
-                                    <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">📄 Receipt</a>
+                                    <a href="/static/uploads/{{ u[6] }}" target="_blank" class="btn btn-primary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt[cite: 1]</a>
                                 {% endif %}
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this driver?');">Delete</a>
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this driver?');">Delete[cite: 1]</a>
                             </div>
                         </div>
 
@@ -90,29 +90,29 @@
                                     {% set found_passengers = true %}
                                     <div class="passenger-item">
                                         <div>
-                                            <strong>👤 {{ p[1] }}</strong>
+                                            <strong>👤 {{ p[1] }}</strong>[cite: 1]
                                             {% if p[5] == 1 %} 
-                                                <span style="color: #27ae60; font-size: 11px; margin-left: 5px;">(🟢 Active)</span>
+                                                <span style="color: #27ae60; font-size: 11px; margin-left: 5px;">(🟢 Active)[cite: 1]</span>
                                             {% else %} 
-                                                <span style="color: #e74c3c; font-size: 11px; margin-left: 5px;">(⏳ Inactive)</span>
+                                                <span style="color: #e74c3c; font-size: 11px; margin-left: 5px;">(⏳ Inactive)[cite: 1]</span>
                                             {% endif %}
                                         </div>
                                         <div>
                                             {% if p[6] and p[6] != 'Owner Account (Free)' %}
-                                                <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt</a>
+                                                <a href="/static/uploads/{{ p[6] }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt[cite: 1]</a>
                                             {% endif %}
-                                            <a href="/edit_user/{{ p[0] }}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">✏️ Edit</a>
+                                            <a href="/edit_user/{{ p[0] }}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">✏️ Edit[cite: 1]</a>
                                             <a href="/toggle_status/{{ p[0] }}" class="btn {% if p[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">
-                                                {% if p[5] == 1 %}Deactivate{% else %}Activate{% endif %}
+                                                {% if p[5] == 1 %}Deactivate[cite: 1]{% else %}Activate[cite: 1]{% endif %}
                                             </a>
-                                            <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this passenger?');">Delete</a>
+                                            <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this passenger?');">Delete[cite: 1]</a>
                                         </div>
                                     </div>
                                 {% endif %}
                             {% endfor %}
                             
                             {% if not found_passengers %}
-                                <span style="color: #94a3b8; font-size: 13px; font-style: italic;">No passengers registered under this vehicle code yet.</span>
+                                <span style="color: #94a3b8; font-size: 13px; font-style: italic;">No passengers registered under this vehicle code yet.[cite: 1]</span>
                             {% endif %}
                         </div>
                     </div>
@@ -120,7 +120,7 @@
             {% endfor %}
             
             {% if not ns.driver_found %}
-                <p style="color: #777;">No drivers registered in the system yet.</p>
+                <p style="color: #777;">No drivers registered in the system yet.[cite: 1]</p>
             {% endif %}
         </div>
 
@@ -131,96 +131,63 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Username</th>
-                        <th>Role</th>
-                        <th>Vehicle Code</th>
-                        <th>Status</th>
-                        <th>Expiry Date</th>
-                        <th>Receipt</th>
-                        <th>Actions</th>
+                        <th>Username[cite: 1]</th>
+                        <th>Role[cite: 1]</th>
+                        <th>Vehicle Code[cite: 1]</th>
+                        <th>Status[cite: 1]</th>
+                        <th>Expiry Date[cite: 1]</th>
+                        <th>Receipt[cite: 1]</th>
+                        <th>Actions[cite: 1]</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in users %}
                     <tr>
-                        <td><strong>{{ u[1] }}</strong></td>
+                        <td><strong>{{ u[1] }}</strong>[cite: 1]</td>
                         <td>
-                            {% if u[3] == 'owner' %} 👑 Owner
-                            {% elif u[3] == 'driver' %} 🚐 Driver
-                            {% else %} 👤 Passenger {% endif %}
+                            {% if u[3] == 'owner' %} 👑 Owner[cite: 1]
+                            {% elif u[3] == 'driver' %} 🚐 Driver[cite: 1]
+                            {% else %} 👤 Passenger[cite: 1] {% endif %}
                         </td>
-                        <td>{{ u[4] if u[4] else '-' }}</td>
+                        <td>{{ u[4] if u[4] else '-' }}[cite: 1]</td>
                         <td>
                             {% if u[5] == 1 %}
-                                <span class="badge-active">Active</span>
+                                <span class="badge-active">Active[cite: 1]</span>
                             {% else %}
-                                <span class="badge-inactive">Inactive</span>
+                                <span class="badge-inactive">Inactive[cite: 1]</span>
                             {% endif %}
                         </td>
-                        <td>{{ u[7] if u[7] else 'No Payment Yet' }}</td>
+                        <td>{{ u[7] if u[7] else 'No Payment Yet' }}[cite: 1]</td>
                         <td>
                             {% if u[6] and u[6] != 'Owner Account (Free)' %}
-                                <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">📄 View Receipt</a>
+                                <a href="/static/uploads/{{ u[6] }}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">📄 View Receipt[cite: 1]</a>
                             {% else %}
-                                <span style="color: #777; font-size: 12px;">{{ u[6] if u[6] else 'None' }}</span>
+                                <span style="color: #777; font-size: 12px;">{{ u[6] if u[6] else 'None' }}[cite: 1]</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if u[3] != 'owner' %}
-                                <!-- Driver එකෙකුට පමණක් ටේබල් එක ඇතුළේ View Passengers බොත්තම පෙන්වීම -->
                                 {% if u[3] == 'driver' %}
                                     <button class="btn btn-info" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="
-                                        var box = document.getElementById('table-passengers-{{ u[0] }}');
+                                        var box = document.getElementById('passengers-{{ u[0] }}');
                                         if (box.style.display === 'none' || box.style.display === '') {
-                                            box.style.display = 'table-row';
+                                            box.style.display = 'block';
                                         } else {
                                             box.style.display = 'none';
                                         }
+                                        window.scrollTo({top: 0, behavior: 'smooth'});
                                     ">👥 View Passengers</button>
                                 {% endif %}
-                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">✏️ Edit</a>
+                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">✏️ Edit[cite: 1]</a>
                                 <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">
-                                    {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
+                                    {% if u[5] == 1 %}Deactivate[cite: 1]{% else %}Activate[cite: 1]{% endif %}
                                 </a>
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this user?');">Delete</a>
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this user?');">Delete[cite: 1]</a>
                             {% else %}
-                                <span style="color: #777; font-size: 11px;">Master Account</span>
+                                <span style="color: #777; font-size: 11px;">Master Account[cite: 1]</span>
                             {% endif %}
                         </td>
                     </tr>
-
-                    <!-- ටේබල් එක ඇතුළේ රියදුරුට යටින් මගීන් විවෘත වන කොටස -->
-                    {% if u[3] == 'driver' %}
-                    <tr id="table-passengers-{{ u[0] }}" style="display: none; background: #f8f9fa;">
-                        <td colspan="7" style="padding: 15px; border-left: 4px solid #17a2b8;">
-                            <strong style="color: #2c3e50;">👥 Passengers under Driver {{ u[1] }} (Vehicle Code: {{ u[4] }}):</strong>
-                            <div style="margin-top: 8px;">
-                                {% set found_t_passengers = false %}
-                                {% for p in users %}
-                                    {% if p[3] == 'passenger' and p[4] == u[4] %}
-                                        {% set found_t_passengers = true %}
-                                        <div style="background: white; padding: 8px 12px; margin: 5px 0; border-radius: 5px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
-                                            <span>👤 <strong>{{ p[1] }}</strong> {% if p[5] == 1 %}<span style="color:green; font-size:11px;">(Active)</span>{% else %}<span style="color:red; font-size:11px;">(Inactive)</span>{% endif %}</span>
-                                            <div>
-                                                {% if p[6] and p[6] != 'Owner Account (Free)' %}
-                                                    <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;">📄 Receipt</a>
-                                                {% endif %}
-                                                <a href="/edit_user/{{ p[0] }}" class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;">✏️ Edit</a>
-                                                <a href="/toggle_status/{{ p[0] }}" class="btn {% if p[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;">
-                                                    {% if p[5] == 1 %}Deactivate{% else %}Activate{% endif %}
-                                                </a>
-                                                <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 2px 6px; font-size: 10px;">Delete</a>
-                                            </div>
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
-                                {% if not found_t_passengers %}
-                                    <span style="color: #777; font-size: 12px; font-style: italic;">No passengers registered under this vehicle code yet.</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
