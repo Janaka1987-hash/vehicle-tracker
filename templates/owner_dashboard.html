@@ -3,102 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ප්‍රධාන පාලක පුවරුව - Owner Dashboard</title>
+    <title>පාලක පුවරුව - Owner Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f7f6; text-align: center; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { color: #007bff; margin-bottom: 10px; }
-        .welcome-box { background: #e2f0d9; color: #385723; padding: 15px; border-radius: 5px; font-weight: bold; margin-bottom: 20px; }
-        .top-actions { margin-bottom: 20px; text-align: right; }
-        .btn-backup { background: #17a2b8; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; }
-        .btn-backup:hover { background: #138496; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px; }
-        th { background: #343a40; color: white; }
-        .active { color: green; font-weight: bold; }
-        .inactive { color: red; font-weight: bold; }
-        .owner-role { color: #d9534f; font-weight: bold; }
-        .btn-action { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-decoration: none; font-size: 12px; display: inline-block; margin: 2px; }
-        .btn-deactivate { background: #ffc107; color: black; }
-        .btn-activate { background: #28a745; color: white; }
-        .btn-edit { background: #007bff; color: white; }
-        .btn-edit:hover { background: #0056b3; }
-        .btn-delete { background: #dc3545; color: white; }
-        .btn-delete:hover { background: #c82333; }
-        a.logout { display: inline-block; margin-top: 20px; background: #6c757d; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none; font-weight: bold; }
-        a.receipt-link { color: #007bff; text-decoration: none; font-weight: bold; }
+        body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; text-align: center; }
+        header { background: #343a40; color: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h2 { margin: 0; color: #333; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: left; }
+        .btn { padding: 8px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; font-size: 14px; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        .btn-primary { background: #007bff; color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background: #f8f9fa; color: #333; }
+        .badge-active { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-inactive { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .driver-card { background: #f9f9f9; border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 6px; }
+        .passenger-buttons-container { margin-top: 8px; }
+        .badge-passenger { background: #007bff; color: white; padding: 5px 10px; margin: 3px; border-radius: 20px; display: inline-block; font-size: 12px; }
+        a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>👑 ප්‍රධාන පාලක පුවරුව (Owner Dashboard)</h2>
-        
-        <!-- ඩේටාබේස් බැකප් බටන් එක නිවැරදි තැනට දමන ලදී -->
-        <div class="top-actions">
-            <a href="{{ url_for('download_backup') }}" class="btn-backup">📥 Download Database Backup</a>
-        </div>
+    <div class="container" style="max-width: 1200px;">
+        <header>
+            <h3 style="margin:0;">👑 පාලක පුවරුව (Owner: {{ username }})</h3>
+            <div>
+                <a href="/download_backup" class="btn btn-warning" style="margin-right: 10px;">📥 DB Backup ලබාගන්න</a>
+                <a href="/logout" class="logout">ඉවත් වන්න</a>
+            </div>
+        </header>
 
-        <div class="welcome-box">
-            ආයුබෝවන් ප්‍රධානියා (ජනක), ඔබට මෙහිදී පරිශීලකයන්ගේ විස්තර Edit කිරීමට, Active/Deactivate කිරීමට සහ Delete කිරීමට හැකියාව ඇත.
-        </div>
-        
-        <h3>පද්ධතියේ ලියාපදිංචි සියලුම පරිශීලකයන්</h3>
+        <h2>📋 සියලුම පරිශීලකයින් සහ ගිණුම් කළමනාකරණය</h2>
         <table>
-            <tr>
-                <th>පරිශීලක නම (Username)</th>
-                <th>මුරපදය (Password)</th>
-                <th>භූමිකාව (Role)</th>
-                <th>වාහන කෝඩ් එක</th>
-                <th>තත්ත්වය (Status)</th>
-                <th>රිසිට්පත</th>
-                <th>පාලනය (Actions)</th>
-            </tr>
-            {% for user in users %}
-            <tr>
-                <td><b>{{ user[1] }}</b></td>
-                <td><code>{{ user[2] }}</code></td>
-                <td>
-                    {% if user[3] == 'owner' %}
-                        <span class="owner-role">👑 Owner</span>
-                    {% elif user[3] == 'driver' %}
-                        🚗 Driver
-                    {% else %}
-                        passenger
-                    {% endif %}
-                </td>
-                <td>{{ user[4] if user[4] else '-' }}</td>
-                <td>
-                    {% if user[5] == 1 %}
-                        <span class="active">Active</span>
-                    {% else %}
-                        <span class="inactive">Inactive</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if user[6] and user[6] != 'Owner Account (Free)' %}
-                        <a class="receipt-link" href="{{ url_for('static', filename='uploads/' + user[6]) }}" target="_blank">📄 බලන්න</a>
-                    {% else %}
-                        <span style="color: gray;">නැත</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if user[3] != 'owner' %}
-                        {% if user[5] == 1 %}
-                            <a href="{{ url_for('toggle_status', user_id=user[0]) }}" class="btn-action btn-deactivate">Deactivate</a>
+            <thead>
+                <tr>
+                    <th>පරිශීලක නාමය</th>
+                    <th>භූමිකාව (Role)</th>
+                    <th>වාහන කේතය</th>
+                    <th>ගිණුම් තත්ත්වය</th>
+                    <th>කල් ඉකුත්වන දිනය</th>
+                    <th>රිසිට්පත</th>
+                    <th>ක්‍රියාමාර්ග</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td><strong>{{ u[1] }}</strong></td>
+                    <td>
+                        {% if u[3] == 'owner' %} 👑 Owner
+                        {% elif u[3] == 'driver' %} 🚐 රියදුරු
+                        {% else %} 👤 මගියා {% endif %}
+                    </td>
+                    <td>{{ u[4] if u[4] else '-' }}</td>
+                    <td>
+                        {% if u[5] == 1 %}
+                            <span class="badge-active">সක්‍රීයයි (Active)</span>
                         {% else %}
-                            <a href="{{ url_for('toggle_status', user_id=user[0]) }}" class="btn-action btn-activate">Activate</a>
+                            <span class="badge-inactive">අක්‍රීයයි (Inactive)</span>
                         {% endif %}
-                        <a href="{{ url_for('edit_user', user_id=user[0]) }}" class="btn-action btn-edit">Edit</a>
-                        <a href="{{ url_for('delete_user', user_id=user[0]) }}" class="btn-action btn-delete" onclick="return confirm('මෙම පරිශීලකයා සම්පූර්ණයෙන්ම ඩීලීට් කිරීමට අවශ්‍යමද?');">Delete</a>
-                    {% else %}
-                        <span style="color: gray;">Master Account</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
+                    </td>
+                    <td>{{ u[7] if u[7] else 'ගෙවීමක් කර නැත' }}</td>
+                    <td>
+                        {% if u[6] and u[6] != 'Owner Account (Free)' %}
+                            <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size: 12px;">📄 රිසිට් බලන්න</a>
+                        {% else %}
+                            <span style="color: #777; font-size: 12px;">{{ u[6] if u[6] else 'නැත' }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u[3] != 'owner' %}
+                            <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 12px;">
+                                {% if u[5] == 1 %}අක්‍රීය කරන්න{% else %}সක්‍රීය කරන්න{% endif %}
+                            </a>
+                            <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="return confirm('මෙම පරිශීලකයා මකා දැමීමට අවශ්‍ය බව یقینද?');">මකන්න</a>
+                        {% else %}
+                            <span style="color: #777; font-size: 12px;">ප්‍රධාන ගිණුමකි</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
 
-        <a href="/logout" class="logout">පද්ධතියෙන් ඉවත් වන්න (Logout)</a>
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ddd;">
+
+        <h2>🚐 රියදුරන් යටතේ සිටින මගීන් ලැයිස්තුව</h2>
+        <div style="margin-top: 15px;">
+            {% set ns = namespace(driver_found=false) %}
+            {% for u in users %}
+                {% if u[3] == 'driver' %}
+                    {% set ns.driver_found = true %}
+                    <div class="driver-card">
+                        <h4 style="margin: 0 0 8px 0; color: #007bff;">🚐 රියදුරු: {{ u[1] }} (වාහනය: {{ u[4] }})</h4>
+                        <p style="margin: 0 0 5px 0; font-size: 13px; color: #555;">සම්බන්ධ වී සිටින මගීන්:</p>
+                        <div class="passenger-buttons-container">
+                            {% set found_passengers = false %}
+                            {% for p in users %}
+                                {% if p[3] == 'passenger' and p[4] == u[4] %}
+                                    {% set found_passengers = true %}
+                                    <span class="badge-passenger">
+                                        👤 {{ p[1] }} 
+                                        {% if p[5] == 1 %} (🟢 සක්‍රීයයි) {% else %} (⏳ අක්‍රීයයි) {% endif %}
+                                    </span>
+                                {% endif %}
+                            {% endfor %}
+                            {% if not found_passengers %}
+                                <span style="color: #777; font-size: 13px;">මෙම රියදුරු යටතේ තවමත් මගීන් ලියාපදිංචි වී නැත.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            {% if not ns.driver_found %}
+                <p style="color: #777;">පද්ධතියේ රියදුරන් තවමත් ලියාපදිංචි වී නැත.</p>
+            {% endif %}
+        </div>
     </div>
 </body>
 </html>
