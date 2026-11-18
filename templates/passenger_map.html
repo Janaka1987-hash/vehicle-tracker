@@ -1,266 +1,108 @@
 <!DOCTYPE html>
 <html lang="si">
 <head>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>මගියාගේ පිටුව - Passenger Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; background: #f4f6f9; }
         header { background: #28a745; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        #map { height: 58vh; width: 100%; }
-        .status { padding: 10px; background: #d4edda; font-weight: bold; color: #155724; font-size: 14px; }
-        .panel { background: #e9ecef; padding: 8px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; font-weight: bold; border-bottom: 1px solid #ccc; }
-        a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; }
-        .btn-attendance { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; color: white; }
-        .btn-present { background: #28a745; }
-        .btn-absent { background: #dc3545; }
-        .btn-alarm { background: #ff9800; color: white; border: none; padding: 7px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        .btn-stop { background: #dc3545; color: white; border: none; padding: 7px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
-        #alarm-banner { background: #dc3545; color: white; padding: 12px; font-weight: bold; display: none; font-size: 16px; }
-        .leaflet-routing-container { display: none; }
+        #map { height: 68vh; width: 100%; }
+        .status { padding: 12px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 14px; }
+        .panel { background: #ffffff; padding: 12px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; }
+        a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; }
+        .btn-attendance-yes { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-attendance-no { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
     <header>
-        <h3 style="margin:0; font-size: 16px;">{{ username }} (මගී - {{ vehicle_code }})</h3>
+        <h3 style="margin:0; font-size: 16px;">{{ username }} (මගී - වාහනය: {{ vehicle_code }})</h3>
         <a href="/logout" class="logout" onclick="notifyLogout()">ඉවත් වන්න</a>
     </header>
 
-    <div id="alarm-banner">🚨 වාහනය ඔබ අසලටම පැමිණ ඇත!</div>
-
     <div class="panel">
-        <button id="enable-alarm-btn" class="btn-alarm" onclick="enableBackgroundAlarm()">🔔 එලාම් සක්‍රීය කරන්න</button>
-        <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarm()">🔕 එලාම් නවත්වන්න</button>
+        <span style="font-weight: bold; font-size: 14px;">අද ගමනට එකතු වෙනවාද?:</span>
+        <button class="btn-attendance-yes" onclick="sendAttendance('Present')">🟢 ඔව් (Present)</button>
+        <button class="btn-attendance-no" onclick="sendAttendance('Absent')">🔴 නැහැ (Absent)</button>
     </div>
 
-    <div class="panel">
-        <span>අද පැමිණීම:</span>
-        <button class="btn-attendance btn-present" onclick="sendAttendance('Present')">🟢 එනවා</button>
-        <button class="btn-attendance btn-absent" onclick="sendAttendance('Absent')">🔴 එන්නේ නැහැ</button>
-    </div>
-
-    <div class="status" id="status">රියදුරුගේ සජීවී ලොකේෂන් එක බලාපොරොත්තු වෙමින් පවතී...</div>
+    <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක ලබා ගනිමින් පවතී...</div>
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     
     <script>
         const socket = io({ transports: ['websocket', 'polling'] });
         let map = L.map('map').setView([7.8731, 80.7718], 13);
-        let driverMarker = null;
         let passengerMarker = null;
-        let routeControl = null;
-        let driverCoords = null;
-        let passengerCoords = null;
         let myVehicleCode = "{{ vehicle_code }}".trim();
-        let alarmTriggered = false;
-        let alarmInterval = null;
-        let audioCtx = null;
+        let myUsername = "{{ username }}";
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        const redIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        const greenIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41]
         });
 
         function notifyLogout() {
-            socket.emit('user_logout', { username: "{{ username }}", role: 'passenger', vehicle_code: myVehicleCode });
-        }
-
-        async function enableBackgroundAlarm() {
-            if ("Notification" in window) {
-                await Notification.requestPermission();
-            }
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-            }
-            if ('wakeLock' in navigator) {
-                try { await navigator.wakeLock.request('screen'); } catch (e) {}
-            }
-            document.getElementById('enable-alarm-btn').innerText = "✅ එලාම් සක්‍රීයයි";
-            document.getElementById('enable-alarm-btn').style.background = "#28a745";
-            alert("එලාම් සහ නොටිෆිකේෂන් සක්‍රීය විය! වාහනය ළඟට ආ විට දැනුම් දෙනු ඇත.");
-        }
-
-        function triggerAlarm(distance) {
-            document.getElementById('alarm-banner').innerText = `🚨 වාහනය ඔබ අසලටම (මීටර් ${Math.round(distance)}) පැමිණ ඇත!`;
-            document.getElementById('alarm-banner').style.display = "block";
-            document.getElementById('stop-alarm-btn').style.display = "inline-block";
-
-            if ("vibrate" in navigator) {
-                navigator.vibrate([1000, 400, 1000, 400, 1000]);
-            }
-
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("🚨 වාහනය අසලටම පැමිණ ඇත!", {
-                    body: `ඔබගේ වාහනය දැන් මීටර් ${Math.round(distance)} ක් ආසන්නයේ ඇත. පාරට පැමිණෙන්න.`,
-                    requireInteraction: true,
-                    vibrate: [1000, 400, 1000]
-                });
-            }
-
-            if (!alarmInterval) {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-
-                alarmInterval = setInterval(() => {
-                    let osc = audioCtx.createOscillator();
-                    let gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(950, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.4);
-                    if ("vibrate" in navigator) navigator.vibrate([600, 200]);
-                }, 1000);
-            }
-        }
-
-        function stopAlarm() {
-            if (alarmInterval) {
-                clearInterval(alarmInterval);
-                alarmInterval = null;
-            }
-            document.getElementById('alarm-banner').style.display = "none";
-            document.getElementById('stop-alarm-btn').style.display = "none";
-            if ("vibrate" in navigator) navigator.vibrate(0);
-        }
-
-        function getDistanceMeters(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const p1 = lat1 * Math.PI / 180;
-            const p2 = lat2 * Math.PI / 180;
-            const dp = (lat2 - lat1) * Math.PI / 180;
-            const dl = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
-            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-        }
-
-        socket.on('connect', () => {
-            socket.emit('join', { vehicle_code: myVehicleCode, username: "{{ username }}", role: 'passenger' });
-        });
-
-        function updateRouteAndCheckAlarm() {
-            if (driverCoords && passengerCoords) {
-                if (routeControl) {
-                    routeControl.setWaypoints([
-                        L.latLng(driverCoords[0], driverCoords[1]),
-                        L.latLng(passengerCoords[0], passengerCoords[1])
-                    ]);
-                } else {
-                    routeControl = L.Routing.control({
-                        waypoints: [
-                            L.latLng(driverCoords[0], driverCoords[1]),
-                            L.latLng(passengerCoords[0], passengerCoords[1])
-                        ],
-                        createMarker: function() { return null; },
-                        lineOptions: { styles: [{ color: '#dc3545', weight: 5 }] },
-                        addWaypoints: false,
-                        draggableWaypoints: false,
-                        fitSelectedRoutes: true
-                    }).addTo(map);
-                }
-
-                let dist = getDistanceMeters(driverCoords[0], driverCoords[1], passengerCoords[0], passengerCoords[1]);
-                document.getElementById('status').innerText = `වාහනය ඔබට මීටර් ${Math.round(dist)} ක් දුරින් පැමිණෙමින් පවතී.`;
-
-                if (dist <= 500 && !alarmTriggered) {
-                    alarmTriggered = true;
-                    triggerAlarm(dist);
-                } else if (dist > 600) {
-                    alarmTriggered = false;
-                }
-            }
+            socket.emit('user_logout', { username: myUsername, role: 'passenger', vehicle_code: myVehicleCode });
         }
 
         function sendAttendance(status) {
-            socket.emit('update_attendance', {
-                username: "{{ username }}",
-                vehicle_code: myVehicleCode,
-                status: status
-            });
-            alert("ඔබේ පැමිණීමේ තත්ත්වය යවන ලදී: " + status);
+            socket.emit('update_attendance', { username: myUsername, vehicle_code: myVehicleCode, status: status });
+            alert(status === 'Present' ? "ඔබ ගමනට එකතු වන බව (Present) රියදුරුට දැන්වීය!" : "ඔබ අද පැමිණෙන්නේ නැති බව (Absent) රියදුරුට දැන්වීය!");
         }
 
-        socket.on('broadcast_location', (data) => {
-            if (data.role === 'driver' && data.lat && data.lng) {
-                let dLat = parseFloat(data.lat);
-                let dLng = parseFloat(data.lng);
-                driverCoords = [dLat, dLng];
-
-                if (!driverMarker) {
-                    driverMarker = L.marker([dLat, dLng], { icon: redIcon }).addTo(map).bindPopup("වාහනය / රියදුරු: " + data.username).openPopup();
-                } else {
-                    driverMarker.setLatLng([dLat, dLng]);
-                }
-                updateRouteAndCheckAlarm();
-            }
+        socket.on('connect', () => {
+            socket.emit('join', { vehicle_code: myVehicleCode, username: myUsername, role: 'passenger' });
         });
 
-        // Cross-Browser GPS Location ලබා ගැනීම
-        function startPassengerGPS() {
+        // GPS ලොකේෂන් ලබාගෙන රියදුරු වෙත යැවීම
+        function startGPSTracking() {
             if (!("geolocation" in navigator)) {
                 document.getElementById('status').innerText = "ඔබගේ බ්‍රව්සරය GPS සඳහා සහාය නොදක්වයි.";
                 return;
             }
 
-            navigator.geolocation.getCurrentPosition(
-                (pos) => { handlePassengerPosition(pos); },
-                (err) => { console.warn("Passenger GPS fallback:", err.message); },
-                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
-            );
-
             navigator.geolocation.watchPosition(
-                handlePassengerPosition,
-                (error) => {
-                    let msg = "GPS දෝෂයකි! ";
-                    if (error.code === error.PERMISSION_DENIED) {
-                        msg += "කරුණාකර Browser Settings වලින් Location අවසරය ලබා දෙන්න.";
-                    } else if (error.code === error.POSITION_UNAVAILABLE) {
-                        msg += "දුරකථනයේ Location (GPS) සක්‍රීය (ON) කරන්න.";
+                (position) => {
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
+
+                    if (!passengerMarker) {
+                        passengerMarker = L.marker([lat, lng], { icon: greenIcon }).addTo(map).bindPopup("ඔබ (මගියා)").openPopup();
+                        map.setView([lat, lng], 15);
                     } else {
-                        msg += "ලොකේෂන් ලබා ගැනීම ප්‍රමාදයි...";
+                        passengerMarker.setLatLng([lat, lng]);
                     }
-                    document.getElementById('status').innerText = msg;
+
+                    document.getElementById('status').innerText = "ජීපීඑස් ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
+
+                    socket.emit('update_location', {
+                        role: 'passenger',
+                        lat: lat,
+                        lng: lng,
+                        vehicle_code: myVehicleCode,
+                        username: myUsername
+                    });
+                },
+                (error) => {
+                    document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර Location (GPS) සක්‍රීය කරන්න.";
                 },
                 { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
             );
         }
 
-        function handlePassengerPosition(position) {
-            let lat = position.coords.latitude;
-            let lng = position.coords.longitude;
-            passengerCoords = [lat, lng];
-
-            if (!passengerMarker) {
-                passengerMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (මගියා)").openPopup();
-                map.setView([lat, lng], 15);
-            } else {
-                passengerMarker.setLatLng([lat, lng]);
-            }
-
-            socket.emit('update_location', {
-                role: 'passenger',
-                lat: lat,
-                lng: lng,
-                vehicle_code: myVehicleCode,
-                username: "{{ username }}"
-            });
-
-            updateRouteAndCheckAlarm();
-        }
-
-        startPassengerGPS();
+        startGPSTracking();
     </script>
 </body>
 </html>
