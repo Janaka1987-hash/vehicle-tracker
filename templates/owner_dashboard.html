@@ -16,29 +16,17 @@
         .btn-warning { background: #f39c12; color: white; }
         .btn-primary { background: #3498db; color: white; }
         
-        /* Driver Clickable Card / Button */
         .driver-card { background: #ffffff; border: 1px solid #cbd5e1; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); overflow: hidden; }
         .driver-button-header { background: #f8f9fa; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; }
         .driver-button-header:hover { background: #e2e8f0; }
         .driver-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin: 0; }
         
-        /* Expandable Passengers Box */
+        /* මගීන් පෙන්වන පෙට්ටිය මුලින් සම්පූර්ණයෙන්ම සඟවා තැබීම */
         .passengers-container { display: none; padding: 15px 20px; background: #ffffff; border-top: 1px solid #e2e8f0; }
         .passenger-item { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px 15px; margin: 8px 0; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; }
         
         a.logout { color: white; background: #e74c3c; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; }
     </style>
-    <script>
-        // රියදුරු බටන් එක ක්ලික් කළ විට මගීන් ලැයිස්තුව පෙන්වීම/සැඟවීම (Toggle)
-        function togglePassengers(driverId) {
-            var box = document.getElementById('passengers-' + driverId);
-            if (box.style.display === 'none' || box.style.display === '') {
-                box.style.display = 'block';
-            } else {
-                box.style.display = 'none';
-            }
-        }
-    </script>
 </head>
 <body>
     <div class="container">
@@ -58,8 +46,15 @@
                 {% if u[3] == 'driver' %}
                     {% set ns.driver_found = true %}
                     <div class="driver-card">
-                        <!-- Driver Header Button (Clickable) -->
-                        <div class="driver-button-header" onclick="togglePassengers('{{ u[0] }}')">
+                        <!-- මෙහි onclick මඟින් ඍජුවම අදාළ ID එක සහිත box එක පෙන්වීම/සැඟවීම සිදු කරයි -->
+                        <div class="driver-button-header" onclick="
+                            var box = document.getElementById('passengers-{{ u[0] }}');
+                            if (box.style.display === 'none' || box.style.display === '') {
+                                box.style.display = 'block';
+                            } else {
+                                box.style.display = 'none';
+                            }
+                        ">
                             <div>
                                 <p class="driver-title">🚐 Driver: <strong>{{ u[1] }}</strong> &nbsp;|&nbsp; Vehicle Code: <span style="color: #e67e22;">{{ u[4] }}</span></p>
                                 <span style="font-size: 12px; color: #666;">Status: {% if u[5] == 1 %}<b style="color:green;">Active</b>{% else %}<b style="color:red;">Inactive</b>{% endif %}</span>[cite: 1]
@@ -76,8 +71,8 @@
                             </div>
                         </div>
 
-                        <!-- Hidden Passengers List (Opens on click) -->
-                        <div id="passengers--{{ u[0] }}" class="passengers-container" style="display: none;">
+                        <!-- අදාළ රියදුරුගේ ID එක සමග සම්බන්ධ වූ මගීන් පෙට්ටිය -->
+                        <div id="passengers-{{ u[0] }}" class="passengers-container">
                             <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: bold; color: #475569;">Assigned Passengers for Vehicle Code: {{ u[4] }}</p>
                             
                             {% set found_passengers = false %}
@@ -96,7 +91,7 @@
                                         <div>
                                             {% if p[6] and p[6] != 'Owner Account (Free)' %}
                                                 <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt</a>[cite: 1]
-                            {% endif %}
+                                            {% endif %}
                                             <a href="/toggle_status/{{ p[0] }}" class="btn {% if p[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">
                                                 {% if p[5] == 1 %}Deactivate{% else %}Activate{% endif %}
                                             </a>[cite: 1]
