@@ -113,10 +113,22 @@ def login():
             session['vehicle_code'] = user[4]
             session['is_active'] = user[5]
             
-            if user[3] == 'owner':
-                return redirect(url_for('owner_dashboard'))
+            role = user[3]
+            uname = user[1]
+            
+            # ඩෑෂ්බෝඩයට යැවීමට පෙර localStorage එකේ සේව් කිරීම සඳහා JavaScript රෙස්පොන්ස් එකක් යැවීම
+            if role == 'owner':
+                target_url = url_for('owner_dashboard')
             else:
-                return redirect(url_for('index'))
+                target_url = url_for('index')
+                
+            return f"""
+                <script>
+                    localStorage.setItem('ridesync_user', "{uname}");
+                    localStorage.setItem('ridesync_role', "{role}");
+                    window.location.href = "{target_url}";
+                </script>
+            """
         else:
             return "<script>alert('වැරදි නමක් හෝ මුරපදයක්! කරුණාකර නැවත උත්සාහ කරන්න.'); window.location.href='/login';</script>"
             
@@ -327,7 +339,6 @@ def handle_attendance(data):
     if vehicle_code:
         emit('broadcast_attendance', data, room=vehicle_code)
 
-# මගියාගේ ගමන අවසන් වූ විට හෝ එලාම් ඔෆ් කළ විට ඩ්‍රයිවර්ගේ මැප් එකෙන් ඉවත් කිරීම සඳහා
 @socketio.on('complete_passenger_trip')
 def handle_complete_passenger_trip(data):
     p_name = data.get('passenger_name')
