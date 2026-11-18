@@ -2,8 +2,8 @@
 <html lang="si">
 <head>
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-<link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
-<link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>රියදුරුගේ පිටුව - Driver Dashboard</title>
@@ -44,7 +44,8 @@
 
     <div class="panel">
         <button id="enable-alarm-btn" class="btn-alarm" onclick="enableBackgroundAlarm()">🔔 එලාම් සක්‍රීය කරන්න</button>
-        <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarm()">🔕 එලාම් නවත්වන්න</button>
+        <!-- මෙන්න බටන් එක නිවැරදි කර ඇත -->
+        <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarmAndRemovePassenger()">🔕 එලාම් නවත්වන්න & මගියා ඉවත් කරන්න</button>
         <button id="toggle-list-btn" class="btn-toggle-list" onclick="togglePassengerList()">📋 ලැයිස්තුව සඟවන්න</button>
     </div>
 
@@ -90,6 +91,7 @@
         let alarmInterval = null;
         let audioCtx = null;
         let isListVisible = true;
+        let currentActivePassenger = null; // ළඟට පැමිණි මගියාගේ නම තබා ගැනීමට
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -100,7 +102,7 @@
             iconAnchor: [12, 41]
         });
 
-        // ලැයිස්තුව සැඟවීමට හෝ පෙන්වීමට (සිතියම විශාල කර බැලීමට)
+        // ලැයිස්තුව සැඟවීමට හෝ පෙන්වීමට
         function togglePassengerList() {
             const container = document.getElementById('passenger-list-container');
             const btn = document.getElementById('toggle-list-btn');
@@ -140,6 +142,7 @@
         }
 
         function triggerAlarm(passengerName, distance) {
+            currentActivePassenger = passengerName; // අදාළ මගියාගේ නම සේව් කරගනී
             document.getElementById('alarm-banner').innerText = `🚨 මගී ${passengerName} ඔබ අසලින්ම (මීටර් ${Math.round(distance)}) සිටී!`;
             document.getElementById('alarm-banner').style.display = "block";
             document.getElementById('stop-alarm-btn').style.display = "inline-block";
@@ -199,7 +202,7 @@
             socket.emit('join', { vehicle_code: myVehicleCode, username: "{{ username }}", role: 'driver' });
         });
 
-        // සියලුම Browsers සඳහා Cross-Browser GPS Location ලබා ගැනීම
+        // GPS ලොකේෂන් ලබා ගැනීම
         function startGPSTracking() {
             if (!("geolocation" in navigator)) {
                 document.getElementById('status').innerText = "ඔබගේ බ්‍රව්සරය GPS සඳහා සහාය නොදක්වයි.";
@@ -215,15 +218,7 @@
             navigator.geolocation.watchPosition(
                 handlePositionSuccess,
                 (error) => {
-                    let msg = "GPS දෝෂයකි! ";
-                    if (error.code === error.PERMISSION_DENIED) {
-                        msg += "කරුණාකර Browser Settings වලින් Location අවසරය ලබා දෙන්න.";
-                    } else if (error.code === error.POSITION_UNAVAILABLE) {
-                        msg += "දුරකථනයේ Location (GPS) සක්‍රීය (ON) කරන්න.";
-                    } else {
-                        msg += "සංඥා ලබා ගැනීම ප්‍රමාදයි, මදක් රැඳී සිටින්න...";
-                    }
-                    document.getElementById('status').innerText = msg;
+                    document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර Location (GPS) සක්‍රීය කරන්න.";
                 },
                 { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
             );
@@ -333,7 +328,7 @@
             updatePassengerListAndDistances();
         });
 
-        // මගියෙකු Logout වූ විට හෝ Disconnect වූ විට සිතියමෙන් සහ ලැයිස්තුවෙන් ඉවත් කිරීම
+        // මගියෙකු Logout වූ විට හෝ ගමන අවසන් කළ විට සිතියමෙන් සහ ලැයිස්තුවෙන් ඉවත් කිරීම
         socket.on('remove_user', (data) => {
             let pUser = data.username;
             if (passengerMarkers[pUser]) {
@@ -350,6 +345,19 @@
             
             updatePassengerListAndDistances();
         });
+
+        // එලාම් නවතා අදාළ මගියාව මැප් එකෙන් ඉවත් කිරීම
+        function stopAlarmAndRemovePassenger() {
+            stopAlarm(); // එලාම් එක නවත්වයි
+            if (currentActivePassenger) {
+                // සේවාදායකයට මෙම මගියාගේ ගමන අවසන් බව දන්වයි
+                socket.emit('complete_passenger_trip', { 
+                    passenger_name: currentActivePassenger, 
+                    vehicle_code: myVehicleCode 
+                });
+                currentActivePassenger = null;
+            }
+        }
     </script>
 </body>
 </html>
