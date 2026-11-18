@@ -27,14 +27,16 @@
         .driver-section { margin-top: 30px; }
         .driver-card { background: #ffffff; border: 1px solid #cbd5e1; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); overflow: hidden; }
         
-        /* Driver Header Button (Clickable to Toggle) */
         .driver-button-header { background: #f8f9fa; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; flex-wrap: wrap; }
         .driver-button-header:hover { background: #e2e8f0; }
         .driver-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin: 0; }
         
-        /* Passengers Box (Hidden by default, opens on click) */
         .passengers-container { display: none; padding: 15px 20px; background: #ffffff; border-top: 1px solid #e2e8f0; }
         .passenger-item { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px 15px; margin: 8px 0; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; }
+        
+        /* Table clickable row styling */
+        .clickable-row { cursor: pointer; transition: background 0.2s; }
+        .clickable-row:hover { background: #f1f5f9; }
         
         a.logout { color: white; background: #e74c3c; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-size: 14px; font-weight: bold; }
     </style>
@@ -45,7 +47,7 @@
             <h3 style="margin:0; color: white;">👑 Owner Dashboard ({{ username }})</h3>
             <div>
                 <a href="/download_backup" class="btn btn-warning" style="margin-right: 10px;">📥 Download DB Backup</a>
-                <a href="/logout" class="logout">Logout</a>[cite: 1]
+                <a href="/logout" class="logout">Logout</a>
             </div>
         </header>
 
@@ -57,7 +59,6 @@
                 {% if u[3] == 'driver' %}
                     {% set ns.driver_found = true %}
                     <div class="driver-card">
-                        <!-- Driver Header (Clickable) -->
                         <div class="driver-button-header" onclick="
                             var box = document.getElementById('passengers-{{ u[0] }}');
                             if (box.style.display === 'none' || box.style.display === '') {
@@ -68,22 +69,21 @@
                         ">
                             <div>
                                 <p class="driver-title">🚐 Driver: <strong>{{ u[1] }}</strong> &nbsp;|&nbsp; Vehicle Code: <span style="color: #e67e22;">{{ u[4] }}</span></p>
-                                <span style="font-size: 12px; color: #666;">Status: {% if u[5] == 1 %}<b style="color:green;">Active</b>{% else %}<b style="color:red;">Inactive</b>{% endif %}</span>[cite: 1]
+                                <span style="font-size: 12px; color: #666;">Status: {% if u[5] == 1 %}<b style="color:green;">Active</b>{% else %}<b style="color:red;">Inactive</b>{% endif %}</span>
                             </div>
                             <div>
                                 <span style="font-size: 13px; color: #3498db; font-weight: bold; margin-right: 10px;">👥 View Passengers ▾</span>
-                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">✏️ Edit</a>[cite: 1]
+                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">✏️ Edit</a>
                                 <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">
                                     {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
-                                </a>[cite: 1]
+                                </a>
                                 {% if u[6] and u[6] != 'Owner Account (Free)' %}
-                                    <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">📄 Receipt</a>[cite: 1]
+                                    <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 5px 8px; font-size: 11px; margin-right: 5px;" onclick="event.stopPropagation();">📄 Receipt</a>
                                 {% endif %}
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this driver?');">Delete</a>[cite: 1]
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this driver?');">Delete</a>
                             </div>
                         </div>
 
-                        <!-- Passengers Container (Toggles on click) -->
                         <div id="passengers-{{ u[0] }}" class="passengers-container">
                             <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: bold; color: #475569;">Assigned Passengers for Vehicle Code: {{ u[4] }}</p>
                             
@@ -93,29 +93,29 @@
                                     {% set found_passengers = true %}
                                     <div class="passenger-item">
                                         <div>
-                                            <strong>👤 {{ p[1] }}</strong>[cite: 1]
+                                            <strong>👤 {{ p[1] }}</strong>
                                             {% if p[5] == 1 %} 
-                                                <span style="color: #27ae60; font-size: 11px; margin-left: 5px;">(🟢 Active)</span>[cite: 1]
+                                                <span style="color: #27ae60; font-size: 11px; margin-left: 5px;">(🟢 Active)</span>
                                             {% else %} 
-                                                <span style="color: #e74c3c; font-size: 11px; margin-left: 5px;">(⏳ Inactive)</span>[cite: 1]
+                                                <span style="color: #e74c3c; font-size: 11px; margin-left: 5px;">(⏳ Inactive)</span>
                                             {% endif %}
                                         </div>
                                         <div>
                                             {% if p[6] and p[6] != 'Owner Account (Free)' %}
-                                                <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt</a>[cite: 1]
+                                                <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt</a>
                                             {% endif %}
-                                            <a href="/edit_user/{{ p[0] }}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">✏️ Edit</a>[cite: 1]
+                                            <a href="/edit_user/{{ p[0] }}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">✏️ Edit</a>
                                             <a href="/toggle_status/{{ p[0] }}" class="btn {% if p[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">
                                                 {% if p[5] == 1 %}Deactivate{% else %}Activate{% endif %}
-                                            </a>[cite: 1]
-                                            <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this passenger?');">Delete</a>[cite: 1]
+                                            </a>
+                                            <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this passenger?');">Delete</a>
                                         </div>
                                     </div>
                                 {% endif %}
                             {% endfor %}
                             
                             {% if not found_passengers %}
-                                <span style="color: #94a3b8; font-size: 13px; font-style: italic;">No passengers registered under this vehicle code yet.</span>[cite: 1]
+                                <span style="color: #94a3b8; font-size: 13px; font-style: italic;">No passengers registered under this vehicle code yet.</span>
                             {% endif %}
                         </div>
                     </div>
@@ -129,57 +129,97 @@
 
         <hr style="margin: 40px 0; border: 0; border-top: 1px solid #ddd;">
 
-        <h2>📋 Complete User Management Table</h2>
+        <h2>📋 Complete User Management Table (Click a driver row to expand passengers)</h2>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
-                        <th>Username</th>[cite: 1]
-                        <th>Role</th>[cite: 1]
-                        <th>Vehicle Code</th>[cite: 1]
-                        <th>Status</th>[cite: 1]
-                        <th>Expiry Date</th>[cite: 1]
-                        <th>Receipt</th>[cite: 1]
-                        <th>Actions</th>[cite: 1]
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Vehicle Code</th>
+                        <th>Status</th>
+                        <th>Expiry Date</th>
+                        <th>Receipt</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in users %}
-                    <tr>
-                        <td><strong>{{ u[1] }}</strong></td>[cite: 1]
+                    <tr {% if u[3] == 'driver' %}class="clickable-row" onclick="
+                        var box = document.getElementById('table-passengers-{{ u[0] }}');
+                        if (box.style.display === 'none' || box.style.display === '') {
+                            box.style.display = 'table-row';
+                        } else {
+                            box.style.display = 'none';
+                        }
+                    "{% endif %}>
+                        <td><strong>{{ u[1] }}</strong> {% if u[3] == 'driver' %}<span style="color: #3498db; font-size: 11px;">(Click to expand ▾)</span>{% endif %}</td>
                         <td>
-                            {% if u[3] == 'owner' %} 👑 Owner[cite: 1]
-                            {% elif u[3] == 'driver' %} 🚐 Driver[cite: 1]
-                            {% else %} 👤 Passenger {% endif %}[cite: 1]
+                            {% if u[3] == 'owner' %} 👑 Owner
+                            {% elif u[3] == 'driver' %} 🚐 Driver
+                            {% else %} 👤 Passenger {% endif %}
                         </td>
-                        <td>{{ u[4] if u[4] else '-' }}</td>[cite: 1]
+                        <td>{{ u[4] if u[4] else '-' }}</td>
                         <td>
                             {% if u[5] == 1 %}
-                                <span class="badge-active">Active</span>[cite: 1]
+                                <span class="badge-active">Active</span>
                             {% else %}
-                                <span class="badge-inactive">Inactive</span>[cite: 1]
+                                <span class="badge-inactive">Inactive</span>
                             {% endif %}
                         </td>
-                        <td>{{ u[7] if u[7] else 'No Payment Yet' }}</td>[cite: 1]
+                        <td>{{ u[7] if u[7] else 'No Payment Yet' }}</td>
                         <td>
                             {% if u[6] and u[6] != 'Owner Account (Free)' %}
-                                <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">📄 View Receipt</a>[cite: 1]
+                                <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">📄 View Receipt</a>
                             {% else %}
-                                <span style="color: #777; font-size: 12px;">{{ u[6] if u[6] else 'None' }}</span>[cite: 1]
+                                <span style="color: #777; font-size: 12px;">{{ u[6] if u[6] else 'None' }}</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if u[3] != 'owner' %}
-                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">✏️ Edit</a>[cite: 1]
-                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">
+                                <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="event.stopPropagation();">✏️ Edit</a>
+                                <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="event.stopPropagation();">
                                     {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
-                                </a>[cite: 1]
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this user?');">Delete</a>[cite: 1]
+                                </a>
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this user?');">Delete</a>
                             {% else %}
-                                <span style="color: #777; font-size: 11px;">Master Account</span>[cite: 1]
+                                <span style="color: #777; font-size: 11px;">Master Account</span>
                             {% endif %}
                         </td>
                     </tr>
+
+                    <!-- Hidden expandable row for driver's passengers inside the table -->
+                    {% if u[3] == 'driver' %}
+                    <tr id="table-passengers-{{ u[0] }}" style="display: none; background: #f8f9fa;">
+                        <td colspan="7" style="padding: 15px; border-left: 4px solid #3498db;">
+                            <strong style="color: #2c3e50;">👥 Passengers under Driver {{ u[1] }} (Vehicle Code: {{ u[4] }}):</strong>
+                            <div style="margin-top: 8px;">
+                                {% set found_t_passengers = false %}
+                                {% for p in users %}
+                                    {% if p[3] == 'passenger' and p[4] == u[4] %}
+                                        {% set found_t_passengers = true %}
+                                        <div style="background: white; padding: 8px 12px; margin: 5px 0; border-radius: 5px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                                            <span>👤 <strong>{{ p[1] }}</strong> {% if p[5] == 1 %}<span style="color:green; font-size:11px;">(Active)</span>{% else %}<span style="color:red; font-size:11px;">(Inactive)</span>{% endif %}</span>
+                                            <div>
+                                                {% if p[6] and p[6] != 'Owner Account (Free)' %}
+                                                    <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;">📄 Receipt</a>
+                                                {% endif %}
+                                                <a href="/edit_user/{{ p[0] }}" class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;">✏️ Edit</a>
+                                                <a href="/toggle_status/{{ p[0] }}" class="btn {% if p[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 2px 6px; font-size: 10px; margin-right: 5px;">
+                                                    {% if p[5] == 1 %}Deactivate{% else %}Activate{% endif %}
+                                                </a>
+                                                <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 2px 6px; font-size: 10px;">Delete</a>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not found_t_passengers %}
+                                    <span style="color: #777; font-size: 12px; font-style: italic;">No passengers registered under this vehicle code yet.</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
