@@ -126,8 +126,23 @@
 
         <hr style="margin: 40px 0; border: 0; border-top: 1px solid #ddd;">
 
-        <h2>📋 Complete User Management Table</h2>
-        <div style="overflow-x: auto;">
+        <!-- Complete User Management Table කොටස සහ එය විවෘත කරන බොත්තම -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0; border: none;">📋 Complete User Management Table</h2>
+            <button class="btn btn-primary" style="padding: 8px 15px; font-size: 13px;" onclick="
+                var tableDiv = document.getElementById('user-table-container');
+                if (tableDiv.style.display === 'none' || tableDiv.style.display === '') {
+                    tableDiv.style.display = 'block';
+                    this.innerText = '📂 Hide Management Table';
+                } else {
+                    tableDiv.style.display = 'none';
+                    this.innerText = '📁 Open Management Table';
+                }
+            ">📁 Open Management Table</button>
+        </div>
+
+        <!-- මුලින් වැසී තිබෙන (Hidden) සම්පූර්ණ ටේබල් එක තියෙන කොටස -->
+        <div id="user-table-container" style="display: none; overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
@@ -167,17 +182,6 @@
                         </td>
                         <td>
                             {% if u[3] != 'owner' %}
-                                {% if u[3] == 'driver' %}
-                                    <button class="btn btn-info" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="
-                                        var box = document.getElementById('passengers-{{ u[0] }}');
-                                        if (box.style.display === 'none' || box.style.display === '') {
-                                            box.style.display = 'block';
-                                        } else {
-                                            box.style.display = 'none';
-                                        }
-                                        window.scrollTo({top: 0, behavior: 'smooth'});
-                                    ">👥 View Passengers</button>
-                                {% endif %}
                                 <a href="/edit_user/{{ u[0] }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">✏️ Edit[cite: 1]</a>
                                 <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">
                                     {% if u[5] == 1 %}Deactivate[cite: 1]{% else %}Activate[cite: 1]{% endif %}
