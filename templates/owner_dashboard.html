@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="si">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>පාලක පුවරුව - Owner Dashboard</title>
+    <title>Owner Dashboard - RideSync</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; text-align: center; }
         .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); text-align: left; }
@@ -37,14 +37,14 @@
 <body>
     <div class="container">
         <header>
-            <h3 style="margin:0; color: white;">👑 පාලක පුවරුව (Owner: {{ username }})</h3>
+            <h3 style="margin:0; color: white;">👑 Owner Dashboard ({{ username }})</h3>[cite: 1]
             <div>
-                <a href="/download_backup" class="btn btn-warning" style="margin-right: 10px;">📥 DB Backup ලබාගන්න[cite: 1]</a>
-                <a href="/logout" class="logout">ඉවත් වන්න[cite: 1]</a>
+                <a href="/download_backup" class="btn btn-warning" style="margin-right: 10px;">📥 Download DB Backup</a>[cite: 1]
+                <a href="/logout" class="logout">Logout</a>[cite: 1]
             </div>
         </header>
 
-        <h2>🚐 රියදුරන් සහ ඔවුන් යටතේ සිටින මගීන් කළමනාකරණය</h2>
+        <h2>🚐 Drivers & Their Assigned Passengers</h2>
         
         <div class="driver-section">
             {% set ns = namespace(driver_found=false) %}
@@ -54,23 +54,23 @@
                     <div class="driver-card">
                         <div class="driver-header">
                             <div>
-                                <p class="driver-title">🚐 රියදුරු: {{ u[1] }} <span style="color: #e67e22; font-size: 15px;">(වාහන කේතය: {{ u[4] }})</span>[cite: 1]</p>
-                                <span style="font-size: 12px; color: #666;">ගිණුම් තත්ත්වය: {% if u[5] == 1 %}<b style="color:green;">সක්‍රීයයි[cite: 1]</b>{% else %}<b style="color:red;">අක්‍රීයයි</b>{% endif %}</span>
+                                <p class="driver-title">🚐 Driver: {{ u[1] }} <span style="color: #e67e22; font-size: 15px;">(Vehicle Code: {{ u[4] }})</span></p>[cite: 1]
+                                <span style="font-size: 12px; color: #666;">Status: {% if u[5] == 1 %}<b style="color:green;">Active</b>{% else %}<b style="color:red;">Inactive</b>{% endif %}</span>[cite: 1]
                             </div>
                             <div>
                                 <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 5px 10px; font-size: 12px;">
-                                    {% if u[5] == 1 %}රියදුරු අක්‍රීය කරන්න[cite: 1]{% else %}රියදුරු সක්‍රීය කරන්න{% endif %}
-                                </a>
+                                    {% if u[5] == 1 %}Deactivate Driver{% else %}Activate Driver{% endif %}
+                                </a>[cite: 1]
                                 {% if u[6] and u[6] != 'Owner Account (Free)' %}
-                                    <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">📄 රිසිට්පත[cite: 1]</a>
+                                    <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">📄 View Receipt</a>[cite: 1]
                                 {% endif %}
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="return confirm('මෙම රියදුරු මකා දැමීමට අවශ්‍ය බව විශ්වාසද?');">මකන්න[cite: 1]</a>
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="return confirm('Are you sure you want to delete this driver?');">Delete</a>[cite: 1]
                             </div>
                         </div>
 
-                        <!-- මෙම රියදුරුගේ වාහන කේතයට (vehicle_code) අදාළ මගීන් පමණක් මෙහි පෙන්වීම -->
+                        <!-- Passengers under this driver -->
                         <div class="passengers-box">
-                            <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #475569;">👥 මෙම රියදුරු යටතේ ලියාපදිංචි මගීන්:</p>
+                            <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #475569;">👥 Passengers under this driver:</p>
                             
                             {% set found_passengers = false %}
                             {% for p in users %}
@@ -78,28 +78,28 @@
                                     {% set found_passengers = true %}
                                     <div class="passenger-item">
                                         <div>
-                                            <strong>👤 {{ p[1] }}[cite: 1]</strong> 
+                                            <strong>👤 {{ p[1] }}</strong>[cite: 1]
                                             {% if p[5] == 1 %} 
-                                                <span style="color: #27ae60; font-size: 11px; margin-left: 5px;">(🟢 සක්‍රීයයි[cite: 1])</span> 
+                                                <span style="color: #27ae60; font-size: 11px; margin-left: 5px;">(🟢 Active)</span>[cite: 1]
                                             {% else %} 
-                                                <span style="color: #e74c3c; font-size: 11px; margin-left: 5px;">(⏳ අක්‍රීයයි)</span> 
+                                                <span style="color: #e74c3c; font-size: 11px; margin-left: 5px;">(⏳ Inactive)</span> 
                                             {% endif %}
                                         </div>
                                         <div>
                                             {% if p[6] and p[6] != 'Owner Account (Free)' %}
-                                                <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 රිසිට්[cite: 1]</a>
+                                                <a href="{{ url_for('static', filename='uploads/' + p[6]) }}" target="_blank" class="btn btn-primary" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">📄 Receipt</a>[cite: 1]
                                             {% endif %}
                                             <a href="/toggle_status/{{ p[0] }}" class="btn {% if p[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 3px 8px; font-size: 11px; margin-right: 5px;">
-                                                {% if p[5] == 1 %}අක්‍රීය කරන්න[cite: 1]{% else %}సක්‍රීය කරන්න{% endif %}
-                                            </a>
-                                            <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="return confirm('මෙම මගියා ඉවත් කිරීමට අවශ්‍ය බව විශ්වාසද?');">මකන්න[cite: 1]</a>
+                                                {% if p[5] == 1 %}Deactivate{% else %}Activate{% endif %}
+                                            </a>[cite: 1]
+                                            <a href="/delete_user/{{ p[0] }}" class="btn btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this passenger?');">Delete</a>[cite: 1]
                                         </div>
                                     </div>
                                 {% endif %}
                             {% endfor %}
                             
                             {% if not found_passengers %}
-                                <span style="color: #94a3b8; font-size: 13px; font-style: italic;">මෙම වාහන කේතය ({{ u[4] }}) යටතේ තවමත් මගීන් ලියාපදිංචි වී නැත[cite: 1].</span>
+                                <span style="color: #94a3b8; font-size: 13px; font-style: italic;">No passengers registered under vehicle code ({{ u[4] }}) yet.</span>[cite: 1]
                             {% endif %}
                         </div>
                     </div>
@@ -107,60 +107,59 @@
             {% endfor %}
             
             {% if not ns.driver_found %}
-                <p style="color: #777;">පද්ධතියේ රියදුරන් තවමත් ලියාපදිංචි වී නැත.</p>
+                <p style="color: #777;">No drivers registered in the system yet.</p>
             {% endif %}
         </div>
 
         <hr style="margin: 40px 0; border: 0; border-top: 1px solid #ddd;">
 
-        <!-- සියලුම පරිශීලකයින්ගේ සාමාන්‍ය ලැයිස්තුව (සුළු පාලනය සඳහා) -->
-        <h2>📋 අනෙකුත් සියලුම පරිශීලකයින් (Passengers Without Matching Driver Code etc.)</h2>
+        <h2>📋 Complete User Management Table</h2>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
-                        <th>පරිශීලක නාමය[cite: 1]</th>
-                        <th>භූමිකාව[cite: 1]</th>
-                        <th>වාහන කේතය[cite: 1]</th>
-                        <th>තත්ත්වය[cite: 1]</th>
-                        <th>කල් ඉකුත්වන දිනය[cite: 1]</th>
-                        <th>රිසිට්පත[cite: 1]</th>
-                        <th>ක්‍රියාමාර්ග[cite: 1]</th>
+                        <th>Username</th>[cite: 1]
+                        <th>Role</th>[cite: 1]
+                        <th>Vehicle Code</th>[cite: 1]
+                        <th>Status</th>[cite: 1]
+                        <th>Expiry Date</th>[cite: 1]
+                        <th>Receipt</th>[cite: 1]
+                        <th>Actions</th>[cite: 1]
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in users %}
                     <tr>
-                        <td><strong>{{ u[1] }}[cite: 1]</strong></td>
+                        <td><strong>{{ u[1] }}</strong></td>[cite: 1]
                         <td>
                             {% if u[3] == 'owner' %} 👑 Owner[cite: 1]
-                            {% elif u[3] == 'driver' %} 🚐 රියදුරු[cite: 1]
-                            {% else %} 👤 මගියා[cite: 1] {% endif %}
+                            {% elif u[3] == 'driver' %} 🚐 Driver[cite: 1]
+                            {% else %} 👤 Passenger {% endif %}[cite: 1]
                         </td>
-                        <td>{{ u[4] if u[4] else '-' }}[cite: 1]</td>
+                        <td>{{ u[4] if u[4] else '-' }}</td>[cite: 1]
                         <td>
                             {% if u[5] == 1 %}
-                                <span class="badge-active">সක්‍රීයයි[cite: 1]</span>
+                                <span class="badge-active">Active</span>[cite: 1]
                             {% else %}
-                                <span class="badge-inactive">අක්‍රීයයි[cite: 1]</span>
+                                <span class="badge-inactive">Inactive</span>[cite: 1]
                             {% endif %}
                         </td>
-                        <td>{{ u[7] if u[7] else 'ගෙවීමක් කර නැත' }}[cite: 1]</td>
+                        <td>{{ u[7] if u[7] else 'No Payment Yet' }}</td>[cite: 1]
                         <td>
                             {% if u[6] and u[6] != 'Owner Account (Free)' %}
-                                <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">📄 රිසිට් බලන්න[cite: 1]</a>
+                                <a href="{{ url_for('static', filename='uploads/' + u[6]) }}" target="_blank" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">📄 View Receipt</a>[cite: 1]
                             {% else %}
-                                <span style="color: #777; font-size: 12px;">{{ u[6] if u[6] else 'නැත' }}[cite: 1]</span>
+                                <span style="color: #777; font-size: 12px;">{{ u[6] if u[6] else 'None' }}</span>[cite: 1]
                             {% endif %}
                         </td>
                         <td>
                             {% if u[3] != 'owner' %}
                                 <a href="/toggle_status/{{ u[0] }}" class="btn {% if u[5] == 1 %}btn-danger{% else %}btn-success{% endif %}" style="padding: 4px 8px; font-size: 11px;">
-                                    {% if u[5] == 1 %}අක්‍රීය කරන්න[cite: 1]{% else %}సක්‍රීය කරන්න{% endif %}
-                                </a>
-                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="return confirm('මෙම පරිශීලකයා මකා දැමීමට අවශ්‍ය බව විශ්වාසද?');">මකන්න[cite: 1]</a>
+                                    {% if u[5] == 1 %}Deactivate{% else %}Activate{% endif %}
+                                </a>[cite: 1]
+                                <a href="/delete_user/{{ u[0] }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="return confirm('Are you sure you want to delete this user?');">Delete</a>[cite: 1]
                             {% else %}
-                                <span style="color: #777; font-size: 11px;">ප්‍රධාන ගිණුමකි[cite: 1]</span>
+                                <span style="color: #777; font-size: 11px;">Master Account</span>[cite: 1]
                             {% endif %}
                         </td>
                     </tr>
