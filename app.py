@@ -8,13 +8,19 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
+DATA_DIR = '/data' if os.path.isdir('/data') else '.'
+DB_PATH = os.path.join(DATA_DIR, 'database.db')
+
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 latest_locations = {}
 
+def get_db_connection(timeout=10):
+    return sqlite3.connect(DB_PATH, timeout=timeout)
+
 def init_db():
-    conn = sqlite3.connect('database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -60,7 +66,7 @@ def index():
     if role == 'owner':
         return redirect(url_for('owner_dashboard'))
 
-    conn = sqlite3.connect('database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT is_active, expiry_date FROM users WHERE username = ?", (username,))
     user_data = cursor.fetchone()
@@ -76,7 +82,7 @@ def index():
             try:
                 expiry_dt = datetime.strptime(expiry_date_str, '%Y-%m-%d %H:%M:%S')
                 if now > expiry_dt:
-                    conn = sqlite3.connect('database.db')
+                    conn = get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("UPDATE users SET is_active = 0 WHERE username = ?", (username,))
                     conn.commit()
@@ -100,7 +106,7 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        conn = sqlite3.connect('database.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
         user = cursor.fetchone()
@@ -141,7 +147,7 @@ def owner_dashboard():
     if 'username' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
         
-    conn = sqlite3.connect('database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, username, password, role, vehicle_code, is_active, receipt, expiry_date FROM users")
     users = cursor.fetchall()
@@ -154,9 +160,8 @@ def download_backup():
     if 'username' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
     
-    db_path = 'database.db'
-    if os.path.exists(db_path):
-        return send_file(db_path, as_attachment=True, download_name=f"database_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+    if os.path.exists(DB_PATH):
+        return send_file(DB_PATH, as_attachment=True, download_name=f"database_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
     else:
         return "Database file not found!", 404
 
@@ -167,7 +172,7 @@ def toggle_status(user_id):
 
     conn = None
     try:
-        conn = sqlite3.connect('database.db', timeout=10)
+        conn = get_db_connection(timeout=10)
         cursor = conn.cursor()
         cursor.execute("SELECT is_active FROM users WHERE id = ?", (user_id,))
         result = cursor.fetchone()
@@ -198,7 +203,7 @@ def edit_user(user_id):
     if 'username' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
         
-    conn = sqlite3.connect('database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     if request.method == 'POST':
@@ -223,7 +228,7 @@ def delete_user(user_id):
     if 'username' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
         
-    conn = sqlite3.connect('database.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
@@ -244,7 +249,7 @@ def register():
         vehicle_code = request.form.get('vehicle_code', '').strip()
         
         try:
-            conn = sqlite3.connect('database.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active) VALUES (?, ?, ?, ?, 0)", 
                            (username, password, role, vehicle_code))
@@ -271,7 +276,7 @@ def payment():
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
 
-                conn = sqlite3.connect('database.db')
+                conn = get_db_connection()
                 cursor = conn.cursor()
                 cursor.execute("UPDATE users SET receipt = ? WHERE username = ?", (filename, session['username']))
                 conn.commit()
