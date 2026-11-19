@@ -363,6 +363,17 @@ def handle_complete_passenger_trip(data):
     if p_name and v_code:
         emit('remove_user', {'username': p_name}, room=v_code)
 
+@socketio.on('passenger_alarm_stopped')
+def handle_passenger_alarm_stopped(data):
+    username = data.get('username')
+    vehicle_code = str(data.get('vehicle_code', '')).strip()
+
+    if vehicle_code in latest_locations and 'passengers' in latest_locations[vehicle_code]:
+        latest_locations[vehicle_code]['passengers'].pop(username, None)
+
+    if username and vehicle_code:
+        emit('remove_user', {'username': username, 'role': 'passenger', 'reason': 'alarm_stopped'}, room=vehicle_code)
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host='0.0.0.0', port=port)
