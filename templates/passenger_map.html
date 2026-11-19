@@ -41,6 +41,7 @@
         const socket = io({ transports: ['websocket', 'polling'] });
         let map = L.map('map').setView([7.8731, 80.7718], 13);
         let passengerMarker = null;
+        let driverMarker = null;
         let myVehicleCode = "{{ vehicle_code }}".trim();
         let myUsername = "{{ username }}";
 
@@ -48,6 +49,13 @@
 
         const greenIcon = L.icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+        });
+
+        const redIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41]
@@ -64,6 +72,39 @@
 
         socket.on('connect', () => {
             socket.emit('join', { vehicle_code: myVehicleCode, username: myUsername, role: 'passenger' });
+        });
+
+        // රියදුරුගේ (Driver) ලොකේෂන් එක ලබාගෙන Map එකේ පෙන්වීම
+        socket.on('broadcast_location', (data) => {
+            if (!data || data.role !== 'driver') return;
+
+            let dLat = parseFloat(data.lat);
+            let dLng = parseFloat(data.lng);
+            if (isNaN(dLat) || isNaN(dLng)) return;
+
+            let driverLabel = data.username ? `රියදුරු (${data.username})` : "රියදුරු (Driver)";
+
+            if (!driverMarker) {
+                driverMarker = L.marker([dLat, dLng], { icon: redIcon })
+                    .addTo(map)
+                    .bindPopup(driverLabel)
+                    .openPopup();
+            } else {
+                driverMarker.setLatLng([dLat, dLng]);
+                driverMarker.setPopupContent(driverLabel);
+            }
+
+            document.getElementById('status').innerText =
+                `රියදුරු සජීවීව සිටී (${dLat.toFixed(4)}, ${dLng.toFixed(4)})`;
+        });
+
+        // රියදුරු logout වූ විට marker එක ඉවත් කිරීම
+        socket.on('remove_user', (data) => {
+            if (data && data.role === 'driver' && driverMarker) {
+                map.removeLayer(driverMarker);
+                driverMarker = null;
+                document.getElementById('status').innerText = "රියදුරු දැන් Offline වී ඇත.";
+            }
         });
 
         // GPS ලොකේෂන් ලබාගෙන රියදුරු වෙත යැවීම
@@ -85,7 +126,9 @@
                         passengerMarker.setLatLng([lat, lng]);
                     }
 
-                    document.getElementById('status').innerText = "ජීපීඑස් ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
+                    if (!driverMarker) {
+                        document.getElementById('status').innerText = "ජීපීඑස් ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
+                    }
 
                     socket.emit('update_location', {
                         role: 'passenger',
