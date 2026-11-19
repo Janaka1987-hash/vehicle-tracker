@@ -8,7 +8,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 latest_locations = {}
@@ -116,7 +116,6 @@ def login():
             role = user[3]
             uname = user[1]
             
-            # ඩෑෂ්බෝඩයට යැවීමට පෙර localStorage එකේ සේව් කිරීම සඳහා JavaScript රෙස්පොන්ස් එකක් යැවීම
             if role == 'owner':
                 target_url = url_for('owner_dashboard')
             else:
@@ -165,20 +164,33 @@ def download_backup():
 def toggle_status(user_id):
     if 'username' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
-        
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT is_active FROM users WHERE id = ?", (user_id,))
-    result = cursor.fetchone()
-    
-    if result:
-        current_status = result[0]
-        new_status = 0 if current_status == 1 else 1
-        new_expiry = (datetime.utcnow() + timedelta(hours=5, minutes=30) + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S') if new_status == 1 else None
-        cursor.execute("UPDATE users SET is_active = ?, expiry_date = ? WHERE id = ?", (new_status, new_expiry, user_id))
-        conn.commit()
-    
-    conn.close()
+
+    conn = None
+    try:
+        conn = sqlite3.connect('database.db', timeout=10)
+        cursor = conn.cursor()
+        cursor.execute("SELECT is_active FROM users WHERE id = ?", (user_id,))
+        result = cursor.fetchone()
+
+        if result:
+            current_status = result[0] if result[0] is not None else 0
+            new_status = 0 if current_status == 1 else 1
+            new_expiry = (
+                (datetime.utcnow() + timedelta(hours=5, minutes=30) + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+                if new_status == 1
+                else None
+            )
+            cursor.execute(
+                "UPDATE users SET is_active = ?, expiry_date = ? WHERE id = ?",
+                (new_status, new_expiry, user_id)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error in toggle_status for user_id {user_id}: {e}")
+    finally:
+        if conn:
+            conn.close()
+
     return redirect(url_for('owner_dashboard'))
 
 @app.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
@@ -229,123 +241,4 @@ def register():
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']
-        vehicle_code = request.form.get('vehicle_code', '').strip()
-        
-        try:
-            conn = sqlite3.connect('database.db')
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (username, password, role, vehicle_code, is_active) VALUES (?, ?, ?, ?, 0)", 
-                           (username, password, role, vehicle_code))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('login'))
-        except Exception as e:
-            return "මෙම නම දැනටමත් භාවිතා කර ඇත හෝ දෝෂයක් සිදු විය!"
-    return render_template('register.html')
-
-@app.route('/payment', methods=['GET', 'POST'])
-def payment():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-        
-    role = session.get('role')
-    fee = 500 if role == 'driver' else 300
-    
-    if request.method == 'POST':
-        if 'receipt' in request.files:
-            file = request.files['receipt']
-            if file.filename != '':
-                filename = f"{session['username']}_{int(datetime.now().timestamp())}_{file.filename}"
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-
-                conn = sqlite3.connect('database.db')
-                cursor = conn.cursor()
-                cursor.execute("UPDATE users SET receipt = ? WHERE username = ?", (filename, session['username']))
-                conn.commit()
-                conn.close()
-                
-                return "<script>alert('රිසිට්පත සාර්ථකව උඩුගත කරන ලදී! Owner විසින් එය පරීක්ෂා කර ඉක්මනින් ගිණුම සක්‍රීය කරනු ඇත.'); window.location.href='/payment';</script>"
-                
-    return render_template('payment.html', fee=fee, username=session['username'])
-
-@app.route('/logout')
-def logout():
-    username = session.get('username')
-    role = session.get('role')
-    vehicle_code = str(session.get('vehicle_code', '')).strip()
-
-    if vehicle_code in latest_locations:
-        if role == 'driver' and 'driver' in latest_locations[vehicle_code]:
-            del latest_locations[vehicle_code]['driver']
-        elif role == 'passenger' and 'passengers' in latest_locations[vehicle_code]:
-            latest_locations[vehicle_code]['passengers'].pop(username, None)
-
-    if username and vehicle_code:
-        socketio.emit('remove_user', {'username': username, 'role': role}, room=vehicle_code)
-
-    session.clear()
-    return redirect(url_for('login'))
-
-@socketio.on('join')
-def on_join(data):
-    vehicle_code = str(data.get('vehicle_code', '')).strip()
-    if vehicle_code:
-        join_room(vehicle_code)
-        if vehicle_code in latest_locations:
-            room_data = latest_locations[vehicle_code]
-            if 'driver' in room_data:
-                emit('broadcast_location', room_data['driver'])
-            if 'passengers' in room_data:
-                for p_user, p_data in room_data['passengers'].items():
-                    emit('broadcast_location', p_data)
-
-@socketio.on('user_logout')
-def handle_user_logout(data):
-    username = data.get('username')
-    role = data.get('role')
-    vehicle_code = str(data.get('vehicle_code', '')).strip()
-    
-    if vehicle_code in latest_locations:
-        if role == 'driver' and 'driver' in latest_locations[vehicle_code]:
-            del latest_locations[vehicle_code]['driver']
-        elif role == 'passenger' and 'passengers' in latest_locations[vehicle_code]:
-            latest_locations[vehicle_code]['passengers'].pop(username, None)
-            
-    if username and vehicle_code:
-        emit('remove_user', {'username': username, 'role': role}, room=vehicle_code)
-
-@socketio.on('update_location')
-def handle_location(data):
-    vehicle_code = str(data.get('vehicle_code', '')).strip()
-    role = data.get('role')
-    username = data.get('username')
-    if vehicle_code and role and username:
-        if vehicle_code not in latest_locations:
-            latest_locations[vehicle_code] = {'passengers': {}}
-        
-        if role == 'driver':
-            latest_locations[vehicle_code]['driver'] = data
-        elif role == 'passenger':
-            if 'passengers' not in latest_locations[vehicle_code]:
-                latest_locations[vehicle_code]['passengers'] = {}
-            latest_locations[vehicle_code]['passengers'][username] = data
-            
-        emit('broadcast_location', data, room=vehicle_code)
-
-@socketio.on('update_attendance')
-def handle_attendance(data):
-    vehicle_code = str(data.get('vehicle_code', '')).strip()
-    if vehicle_code:
-        emit('broadcast_attendance', data, room=vehicle_code)
-
-@socketio.on('complete_passenger_trip')
-def handle_complete_passenger_trip(data):
-    p_name = data.get('passenger_name')
-    v_code = data.get('vehicle_code')
-    if p_name and v_code:
-        emit('remove_user', {'username': p_name}, room=v_code)
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port)
+        vehicle_code = request.form.get('vehicle_code',
