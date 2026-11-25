@@ -99,6 +99,14 @@
             iconAnchor: [12, 41]
         });
 
+        function getAllKnownPassengers() {
+            const names = new Set([
+                ...Object.keys(passengerMarkers),
+                ...Object.keys(passengerAttendance)
+            ]);
+            return Array.from(names);
+        }
+
         function togglePassengerList() {
             const container = document.getElementById('passenger-list-container');
             const btn = document.getElementById('toggle-list-btn');
@@ -272,38 +280,48 @@
 
         function updatePassengerListAndDistances() {
             let tbody = document.getElementById('passenger-table-body');
-            let pNames = Object.keys(passengerMarkers);
+            let pNames = getAllKnownPassengers();
             document.getElementById('passenger-count').innerText = pNames.length;
 
             if (pNames.length === 0) {
-                if (!document.getElementById('empty-row')) {
-                    tbody.innerHTML = `<tr id="empty-row"><td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td></tr>`;
-                }
+                tbody.innerHTML = `<tr id="empty-row"><td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td></tr>`;
                 return;
             }
 
             let emptyRow = document.getElementById('empty-row');
             if (emptyRow) emptyRow.remove();
 
+            // දැනට ලැයිස්තුවේ නැති අයගේ rows ඉවත් කිරීම
+            Array.from(tbody.querySelectorAll('tr[id^="row-"]')).forEach(tr => {
+                const nameFromRow = tr.id.replace(/^row-/, '');
+                if (!pNames.includes(nameFromRow)) {
+                    tr.remove();
+                }
+            });
+
             pNames.forEach(pUser => {
-                let pLatLng = passengerMarkers[pUser].getLatLng();
-                let distText = "ගණනය වෙමින්...";
+                let distText = "GPS බලාපොරොත්තුවෙන්...";
 
-                if (driverCoords) {
-                    let dist = getDistanceMeters(driverCoords[0], driverCoords[1], pLatLng.lat, pLatLng.lng);
-                    distText = dist >= 1000 ? (dist / 1000).toFixed(2) + " km" : Math.round(dist) + " m";
+                if (passengerMarkers[pUser]) {
+                    let pLatLng = passengerMarkers[pUser].getLatLng();
+                    distText = "ගණනය වෙමින්...";
 
-                    if (passengerLines[pUser]) {
-                        passengerLines[pUser].setLatLngs([driverCoords, [pLatLng.lat, pLatLng.lng]]);
-                    } else {
-                        passengerLines[pUser] = L.polyline([driverCoords, [pLatLng.lat, pLatLng.lng]], { color: '#007bff', weight: 4, dashArray: '8, 8' }).addTo(map);
-                    }
+                    if (driverCoords) {
+                        let dist = getDistanceMeters(driverCoords[0], driverCoords[1], pLatLng.lat, pLatLng.lng);
+                        distText = dist >= 1000 ? (dist / 1000).toFixed(2) + " km" : Math.round(dist) + " m";
 
-                    if (dist <= 500 && !alertedPassengers[pUser]) {
-                        alertedPassengers[pUser] = true;
-                        triggerAlarm(pUser, dist);
-                    } else if (dist > 600) {
-                        alertedPassengers[pUser] = false;
+                        if (passengerLines[pUser]) {
+                            passengerLines[pUser].setLatLngs([driverCoords, [pLatLng.lat, pLatLng.lng]]);
+                        } else {
+                            passengerLines[pUser] = L.polyline([driverCoords, [pLatLng.lat, pLatLng.lng]], { color: '#007bff', weight: 4, dashArray: '8, 8' }).addTo(map);
+                        }
+
+                        if (dist <= 500 && !alertedPassengers[pUser]) {
+                            alertedPassengers[pUser] = true;
+                            triggerAlarm(pUser, dist);
+                        } else if (dist > 600) {
+                            alertedPassengers[pUser] = false;
+                        }
                     }
                 }
 
@@ -328,10 +346,12 @@
         }
 
         socket.on('broadcast_location', (data) => {
-            if (data.role === 'passenger' && data.lat && data.lng) {
-                let pUser = data.username;
+            if (data && data.role === 'passenger' && data.lat && data.lng) {
+                let pUser = (data.username || '').trim();
+                if (!pUser) return;
                 let pLat = parseFloat(data.lat);
                 let pLng = parseFloat(data.lng);
+                if (isNaN(pLat) || isNaN(pLng)) return;
 
                 if (!passengerMarkers[pUser]) {
                     passengerMarkers[pUser] = L.marker([pLat, pLng], { icon: greenIcon }).addTo(map).bindPopup("මගියා: " + pUser);
@@ -343,14 +363,17 @@
         });
 
         socket.on('broadcast_attendance', (data) => {
-            passengerAttendance[data.username] = data.status;
+            if (!data || !data.username) return;
+            const pUser = String(data.username).trim();
+            if (!pUser) return;
+            passengerAttendance[pUser] = data.status;
             updatePassengerListAndDistances();
         });
 
         socket.on('remove_user', (data) => {
             if (!data || !data.username) return;
             if (data.role === 'driver') return;
-            removePassengerFromUI(data.username);
+            removePassengerFromUI(String(data.username).trim());
         });
 
         function stopAlarmAndRemovePassenger() {
