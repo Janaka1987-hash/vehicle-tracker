@@ -11,13 +11,17 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; background: #f4f6f9; }
         header { background: #28a745; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        #map { height: 52vh; width: 100%; }
+        #map { height: 48vh; width: 100%; }
         .status { padding: 10px 12px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 14px; }
         .panel { background: #ffffff; padding: 10px 12px; display: flex; justify-content: center; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; }
-        .custom-km-box { background: #f8f9fa; padding: 10px 12px; display: flex; justify-content: center; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; font-size: 13px; }
+        .custom-km-box { background: #f8f9fa; padding: 9px 12px; display: flex; justify-content: center; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; font-size: 13px; }
+        .home-alarm-box { background: #eef6ff; padding: 9px 12px; display: flex; justify-content: center; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #cfe2ff; font-size: 13px; }
         .custom-km-box input { width: 85px; padding: 7px 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; font-weight: bold; text-align: center; }
         .btn-set-km { background: #0d6efd; color: white; border: none; padding: 7px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-reset-km { background: #6c757d; color: white; border: none; padding: 7px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-save-home { background: #fd7e14; color: white; border: none; padding: 7px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-toggle-home { background: #198754; color: white; border: none; padding: 7px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-clear-home { background: #dc3545; color: white; border: none; padding: 7px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .info-bar { background: #ffffff; padding: 8px 12px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; font-size: 13px; font-weight: bold; color: #222; border-bottom: 1px solid #e5e5e5; }
         a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; }
         .btn-attendance-yes { background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
@@ -70,25 +74,34 @@
         <button id="btnNo" class="btn-attendance-no" onclick="sendAttendance('Absent')">🔴 නැහැ (Absent)</button>
         <button class="btn-sound" id="soundBtn" onclick="enableAudioAlarm()">🔔 Alarm Sound ON</button>
         <button class="btn-notif" id="notifBtn" onclick="requestNotificationPermission()">📩 Alert Permission</button>
-        <button class="btn-fit" onclick="fitBothMarkers()">📍 දෙදෙනාම පෙන්වන්න</button>
+        <button class="btn-fit" onclick="fitBothMarkers()">📍 සිතියම සකසන්න</button>
     </div>
 
     <div class="custom-km-box">
-        <label for="customKmInput"><strong>📏 අමතර KM එලාම්:</strong></label>
+        <label for="customKmInput"><strong>📏 වාහනය එන KM එලාම්:</strong></label>
         <input type="number" id="customKmInput" step="0.1" min="0.1" placeholder="උදා: 4">
         <button class="btn-set-km" onclick="setCustomKmAlarm()">Set KM</button>
         <button class="btn-reset-km" onclick="resetToDefaultAlarm()">Clear KM</button>
         <span id="alarmRuleLabel" style="color: #0d6efd; font-weight: bold;">Always Active: 500m–300m</span>
     </div>
 
+    <div class="home-alarm-box">
+        <span><strong>😴 බහින තැන (ගේ ගාව) Wake-Up Alarm (500m–300m):</strong></span>
+        <button class="btn-save-home" onclick="saveCurrentAsHome()">🏠 මෙතැන Save කරන්න</button>
+        <button class="btn-toggle-home" id="homeToggleBtn" onclick="toggleHomeAlarm()">Wake-Up: OFF</button>
+        <button class="btn-clear-home" id="homeClearBtn" onclick="clearHomeLocation()" style="display:none;">✖</button>
+        <span id="homeStatusLabel" style="color: #555; font-weight: bold;">බහින තැන සේව් කර නැත</span>
+    </div>
+
     <div class="info-bar">
-        <span id="distanceInfo">📏 දුර: --</span>
+        <span id="distanceInfo">📏 වාහනයට දුර: --</span>
         <span id="etaInfo">⏱️ ආසන්න වේලාව: --</span>
+        <span id="homeDistInfo">🏠 ගෙදරට දුර: --</span>
         <span id="myAttendanceInfo">📝 අද තත්ත්වය: තීරණය කර නැත</span>
     </div>
 
     <div class="alarm-banner" id="alarmBanner">
-        <span id="alarmText">🚨 රියදුරු ළං වෙමින් සිටී!</span>
+        <span id="alarmText">🚨 අවධානයයි!</span>
         <button class="btn-stop-alarm" onclick="stopAlarm()">🔕 Stop Alarm</button>
     </div>
 
@@ -103,6 +116,7 @@
         let map = L.map('map').setView([7.8731, 80.7718], 13);
         let passengerMarker = null;
         let driverMarker = null;
+        let homeMarker = null;
         let myVehicleCode = "{{ vehicle_code }}".trim();
         let myUsername = "{{ username }}";
 
@@ -116,11 +130,19 @@
         let autoBandAlarmTriggered = false;
         let customKmAlarmTriggered = false;
 
+        // Home / Drop-off Wake-up Alarm state
+        let savedHomeCoords = null;
+        let homeAlarmEnabled = false;
+        let homeAlarmArmed = false; // ගෙදරින් 1km ට වඩා ඈතට ගිය පසු true වේ (උදේට ගෙදර ඉද්දි නොවැදීමට)
+        let homeAlarmTriggered = false;
+
         let alarmInterval = null;
         let audioCtx = null;
 
         const STORAGE_ATT_KEY = `ridesync_att_${myVehicleCode}_${myUsername}`;
         const STORAGE_KM_KEY = `ridesync_custom_km_${myVehicleCode}_${myUsername}`;
+        const STORAGE_HOME_KEY = `ridesync_home_${myVehicleCode}_${myUsername}`;
+        const STORAGE_HOME_ENABLED_KEY = `ridesync_home_enabled_${myVehicleCode}_${myUsername}`;
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -133,6 +155,13 @@
 
         const redIcon = L.icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+        });
+
+        const homeIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41]
@@ -194,6 +223,154 @@
             alert("අමතර KM ඉවත් කළා. 500m–300m එලාම් එක දිගටම ක්‍රියාත්මකයි.");
         }
 
+        // --- Home / Drop-off Wake-Up Alarm Functions ---
+        function renderHomeMarker() {
+            if (savedHomeCoords) {
+                if (!homeMarker) {
+                    homeMarker = L.marker([savedHomeCoords.lat, savedHomeCoords.lng], { icon: homeIcon })
+                        .addTo(map)
+                        .bindPopup("🏠 ඔබ බහින ස්ථානය (ගේ ගාව)");
+                } else {
+                    homeMarker.setLatLng([savedHomeCoords.lat, savedHomeCoords.lng]);
+                }
+            } else if (homeMarker) {
+                map.removeLayer(homeMarker);
+                homeMarker = null;
+            }
+        }
+
+        function updateHomeAlarmUI() {
+            const toggleBtn = document.getElementById('homeToggleBtn');
+            const clearBtn = document.getElementById('homeClearBtn');
+            const statusLabel = document.getElementById('homeStatusLabel');
+
+            if (!savedHomeCoords) {
+                toggleBtn.innerText = "Wake-Up: OFF";
+                toggleBtn.style.background = "#6c757d";
+                clearBtn.style.display = "none";
+                statusLabel.innerText = "බහින තැන සේව් කර නැත";
+                statusLabel.style.color = "#555";
+                document.getElementById('homeDistInfo').innerText = "🏠 ගෙදරට දුර: --";
+                return;
+            }
+
+            clearBtn.style.display = "inline-block";
+
+            if (homeAlarmEnabled) {
+                toggleBtn.innerText = "🔔 Wake-Up: ON";
+                toggleBtn.style.background = "#198754";
+                if (homeAlarmArmed) {
+                    statusLabel.innerText = "✅ සූදානම් (ගේ ගාවට 500m–300m ආ විට වදී)";
+                    statusLabel.style.color = "#198754";
+                } else {
+                    statusLabel.innerText = "⏳ ගෙදර අසලයි (1km ඈතට ගිය පසු Auto-Arm වේ)";
+                    statusLabel.style.color = "#fd7e14";
+                }
+            } else {
+                toggleBtn.innerText = "🔕 Wake-Up: OFF";
+                toggleBtn.style.background = "#6c757d";
+                statusLabel.innerText = "සේව් කර ඇත (දැනට OFF)";
+                statusLabel.style.color = "#555";
+            }
+        }
+
+        function saveCurrentAsHome() {
+            if (!latestPassengerCoords) {
+                alert("තවම ඔබේ GPS ලොකේෂන් එක ලැබී නැත. මොහොතක් රැඳී සිට නැවත උත්සාහ කරන්න.");
+                return;
+            }
+            savedHomeCoords = {
+                lat: latestPassengerCoords.lat,
+                lng: latestPassengerCoords.lng
+            };
+            homeAlarmEnabled = true;
+            homeAlarmArmed = false; // දැන් ගේ ගාව ඉන්න නිසා 1km ඈතට යනතුරු වදින්නේ නැත
+            homeAlarmTriggered = false;
+
+            localStorage.setItem(STORAGE_HOME_KEY, JSON.stringify(savedHomeCoords));
+            localStorage.setItem(STORAGE_HOME_ENABLED_KEY, "true");
+
+            unlockAudio();
+            renderHomeMarker();
+            updateHomeAlarmUI();
+            checkHomeProximity();
+            alert("🏠 ඔබ බහින ස්ථානය (ගේ ගාව) සාර්ථකව සේව් කළා! ඔබ ගමන පිටත් වී 1km ඈතට ගිය පසු, හවස ආපහු ගේ ගාවට 500m–300m ළං වෙද්දී Wake-Up Alarm එක ස්වයංක්‍රීයව වදිනවා.");
+        }
+
+        function toggleHomeAlarm() {
+            if (!savedHomeCoords) {
+                alert("පළමුව ගේ ගාව ඉඳන් '🏠 මෙතැන Save කරන්න' ඔබා බහින ස්ථානය සේව් කරන්න.");
+                return;
+            }
+            homeAlarmEnabled = !homeAlarmEnabled;
+            homeAlarmTriggered = false;
+
+            // Manual ON කරන වෙලාවේ දැනටමත් ගෙදර ඉඳන් 500m ට වඩා ඈත නම් කෙලින්ම Arm කරන්න
+            if (homeAlarmEnabled && latestPassengerCoords) {
+                const distFromHome = calculateDistanceMeters(
+                    latestPassengerCoords.lat,
+                    latestPassengerCoords.lng,
+                    savedHomeCoords.lat,
+                    savedHomeCoords.lng
+                );
+                if (distFromHome > MAX_ALARM_DISTANCE) {
+                    homeAlarmArmed = true;
+                }
+            }
+
+            localStorage.setItem(STORAGE_HOME_ENABLED_KEY, homeAlarmEnabled ? "true" : "false");
+            unlockAudio();
+            updateHomeAlarmUI();
+            checkHomeProximity();
+        }
+
+        function clearHomeLocation() {
+            savedHomeCoords = null;
+            homeAlarmEnabled = false;
+            homeAlarmArmed = false;
+            homeAlarmTriggered = false;
+            localStorage.removeItem(STORAGE_HOME_KEY);
+            localStorage.removeItem(STORAGE_HOME_ENABLED_KEY);
+            renderHomeMarker();
+            updateHomeAlarmUI();
+        }
+
+        function checkHomeProximity() {
+            if (!savedHomeCoords || !latestPassengerCoords) return;
+
+            const distToHome = calculateDistanceMeters(
+                latestPassengerCoords.lat,
+                latestPassengerCoords.lng,
+                savedHomeCoords.lat,
+                savedHomeCoords.lng
+            );
+
+            const roundedHomeDist = Math.round(distToHome);
+            const homeDistStr = roundedHomeDist >= 1000 ? `${(roundedHomeDist / 1000).toFixed(2)} km` : `${roundedHomeDist} m`;
+            document.getElementById('homeDistInfo').innerText = `🏠 ගෙදරට දුර: ${homeDistStr}`;
+
+            if (!homeAlarmEnabled) return;
+
+            // ගෙදර ඉඳන් 1000m (1km) ට වඩා ඈතට ගිය පසු හවස ආපහු එන ගමන සඳහා Arm කරන්න
+            if (distToHome > 1000 && !homeAlarmArmed) {
+                homeAlarmArmed = true;
+                homeAlarmTriggered = false;
+                updateHomeAlarmUI();
+            }
+
+            // Armed වී ඇති විට ගෙදරට 500m - 300m (හෝ 500m ඇතුළත) ආවොත් ඇහැරවන්න!
+            if (homeAlarmArmed && distToHome <= MAX_ALARM_DISTANCE) {
+                if (!homeAlarmTriggered) {
+                    homeAlarmTriggered = true;
+                    triggerGenericAlarm(
+                        `🏠 ඇහැරෙන්න! ඔබ බහින ස්ථානයට (ගේ ගාවට) ${homeDistStr} ක් ළඟයි!`,
+                        "🏠 බහින තැන ළඟයි!"
+                    );
+                }
+            }
+        }
+
+        // Restore saved states on load
         const savedAtt = localStorage.getItem(STORAGE_ATT_KEY);
         if (savedAtt) applyAttendanceUI(savedAtt);
 
@@ -204,14 +381,29 @@
         }
         updateAlarmRuleLabel();
 
+        try {
+            const rawHome = localStorage.getItem(STORAGE_HOME_KEY);
+            if (rawHome) {
+                const parsedHome = JSON.parse(rawHome);
+                if (parsedHome && typeof parsedHome.lat === 'number' && typeof parsedHome.lng === 'number') {
+                    savedHomeCoords = parsedHome;
+                    homeAlarmEnabled = localStorage.getItem(STORAGE_HOME_ENABLED_KEY) === "true";
+                    renderHomeMarker();
+                }
+            }
+        } catch (e) {}
+        updateHomeAlarmUI();
+
         function fitBothMarkers() {
-            if (passengerMarker && driverMarker) {
-                const bounds = L.latLngBounds([passengerMarker.getLatLng(), driverMarker.getLatLng()]);
-                map.fitBounds(bounds, { padding: [40, 40] });
-            } else if (passengerMarker) {
-                map.setView(passengerMarker.getLatLng(), 15);
-            } else if (driverMarker) {
-                map.setView(driverMarker.getLatLng(), 15);
+            const points = [];
+            if (passengerMarker) points.push(passengerMarker.getLatLng());
+            if (driverMarker) points.push(driverMarker.getLatLng());
+            if (homeMarker) points.push(homeMarker.getLatLng());
+
+            if (points.length >= 2) {
+                map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
+            } else if (points.length === 1) {
+                map.setView(points[0], 15);
             }
         }
 
@@ -224,7 +416,7 @@
                 updateNotifButton(permission);
                 if (permission === "granted") {
                     new Notification("RideSync Alarm Ready", {
-                        body: "රියදුරු 500m–300m හෝ සැකසූ KM දුරට ආ විට alert ලැබෙනු ඇත.",
+                        body: "රියදුරු ළං වූ විට හෝ බහින ස්ථානයට ළං වූ විට alert ලැබෙනු ඇත.",
                         icon: "{{ url_for('static', filename='icon.png') }}"
                     });
                 }
@@ -304,7 +496,7 @@
                     const gain = audioCtx.createGain();
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(950, now + offset);
-                    gain.gain.setValueAtTime(0.35, now + offset);
+                    gain.gain.setValueAtTime(0.4, now + offset);
                     gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.2);
 
                     osc.connect(gain);
@@ -315,22 +507,19 @@
             } catch (e) {}
         }
 
-        function triggerProximityAlarm(distanceMeters, reasonLabel) {
+        function triggerGenericAlarm(msg, notifTitle) {
             const banner = document.getElementById('alarmBanner');
             const alarmText = document.getElementById('alarmText');
-            const roundedDist = Math.round(distanceMeters);
-            const distFormatted = roundedDist >= 1000 ? `${(roundedDist / 1000).toFixed(2)} km` : `${roundedDist} m`;
-            const msg = `🚨 රියදුරු ${distFormatted} දුරින් සිටී (${reasonLabel})!`;
 
             alarmText.innerText = msg;
             banner.classList.add('active');
-            document.title = `🚨 ${distFormatted} - රියදුරු ළඟයි!`;
+            document.title = msg;
 
-            sendSystemNotification("🚨 වාහනය ළඟ එනවා!", msg);
+            sendSystemNotification(notifTitle, msg);
 
             if ("vibrate" in navigator) {
                 try {
-                    navigator.vibrate([600, 200, 600, 200, 600]);
+                    navigator.vibrate([700, 200, 700, 200, 700]);
                 } catch (e) {}
             }
 
@@ -339,10 +528,17 @@
                 alarmInterval = setInterval(() => {
                     playAlarmPattern();
                     if ("vibrate" in navigator) {
-                        try { navigator.vibrate([500, 200, 500]); } catch (e) {}
+                        try { navigator.vibrate([600, 200, 600]); } catch (e) {}
                     }
-                }, 2200);
+                }, 2000);
             }
+        }
+
+        function triggerProximityAlarm(distanceMeters, reasonLabel) {
+            const roundedDist = Math.round(distanceMeters);
+            const distFormatted = roundedDist >= 1000 ? `${(roundedDist / 1000).toFixed(2)} km` : `${roundedDist} m`;
+            const msg = `🚨 රියදුරු ${distFormatted} දුරින් සිටී (${reasonLabel})!`;
+            triggerGenericAlarm(msg, "🚨 වාහනය ළඟ එනවා!");
         }
 
         function clearAlarmUIOnly() {
@@ -380,7 +576,7 @@
 
         function updateDistanceAndETA(distMeters) {
             const distStr = distMeters >= 1000 ? `${(distMeters / 1000).toFixed(2)} km` : `${Math.round(distMeters)} m`;
-            document.getElementById('distanceInfo').innerText = `📏 දුර: ${distStr}`;
+            document.getElementById('distanceInfo').innerText = `📏 වාහනයට දුර: ${distStr}`;
 
             const estSeconds = distMeters / 6.94;
             const estMinutes = Math.max(1, Math.round(estSeconds / 60));
@@ -453,6 +649,7 @@
             if (!document.hidden) {
                 unlockAudio();
                 checkProximity();
+                checkHomeProximity();
             }
         });
 
@@ -512,7 +709,7 @@
                 autoBandAlarmTriggered = false;
                 customKmAlarmTriggered = false;
                 clearAlarmUIOnly();
-                document.getElementById('distanceInfo').innerText = "📏 දුර: --";
+                document.getElementById('distanceInfo').innerText = "📏 වාහනයට දුර: --";
                 document.getElementById('etaInfo').innerText = "⏱️ වේලාව: --";
                 document.getElementById('status').innerText = "රියදුරු දැන් Offline වී ඇත.";
                 return;
@@ -546,6 +743,10 @@
                         passengerMarker.setLatLng([lat, lng]);
                     }
 
+                    // 1. ගේ ගාවට (Drop-off) ළං වෙනවාද බලන්න (රියදුරු Offline වුණත් මෙය වැඩ කරයි!)
+                    checkHomeProximity();
+
+                    // 2. රියදුරු ළං වෙනවාද බලන්න
                     if (latestDriverCoords) {
                         checkProximity();
                     } else {
