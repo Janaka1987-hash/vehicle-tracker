@@ -6,15 +6,31 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key_secure_123'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
 DATA_DIR = '/data' if os.path.isdir('/data') else '.'
 DB_PATH = os.path.join(DATA_DIR, 'database.db')
+app.config['UPLOAD_FOLDER'] = os.path.join(DATA_DIR, 'uploads') if os.path.isdir('/data') else 'static/uploads'
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 latest_locations = {}
+
+def get_room_state(vehicle_code):
+    if vehicle_code not in latest_locations:
+        latest_locations[vehicle_code] = {'passengers': {}, 'attendance': {}}
+    if 'passengers' not in latest_locations[vehicle_code]:
+        latest_locations[vehicle_code]['passengers'] = {}
+    if 'attendance' not in latest_locations[vehicle_code]:
+        latest_locations[vehicle_code]['attendance'] = {}
+    return latest_locations[vehicle_code]
+
+def remove_passenger_from_state(vehicle_code, username):
+    if not vehicle_code or not username:
+        return
+    if vehicle_code in latest_locations:
+        latest_locations[vehicle_code].get('passengers', {}).pop(username, None)
+        latest_locations[vehicle_code].get('attendance', {}).pop(username, None)
 
 def get_db_connection(timeout=10):
     return sqlite3.connect(DB_PATH, timeout=timeout)
@@ -89,7 +105,7 @@ def index():
                     conn.close()
                     session['is_active'] = 0
                     return redirect(url_for('payment'))
-            except Exception as e:
+            except Exception:
                 pass
 
         if is_active == 0:
@@ -103,8 +119,8 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -116,7 +132,7 @@ def login():
             session.clear()
             session['username'] = user[1]
             session['role'] = user[3]
-            session['vehicle_code'] = user[4]
+            session['vehicle_code'] = (user[4] or '').strip()
             session['is_active'] = user[5]
             
             role = user[3]
@@ -207,7 +223,7 @@ def edit_user(user_id):
     cursor = conn.cursor()
     
     if request.method == 'POST':
-        new_username = request.form['username']
+        new_username = request.form['username'].strip()
         new_password = request.form['password']
         new_vehicle_code = request.form['vehicle_code'].strip()
         
@@ -243,7 +259,7 @@ def delete_user(user_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
+        username = request.form['username'].strip()
         password = request.form['password']
         role = request.form['role']
         vehicle_code = request.form.get('vehicle_code', '').strip()
@@ -256,7 +272,7 @@ def register():
             conn.commit()
             conn.close()
             return redirect(url_for('login'))
-        except Exception as e:
+        except Exception:
             return "මෙම නම දැනටමත් භාවිතා කර ඇත හෝ දෝෂයක් සිදු විය!"
     return render_template('register.html')
 
@@ -271,8 +287,9 @@ def payment():
     if request.method == 'POST':
         if 'receipt' in request.files:
             file = request.files['receipt']
-            if file.filename != '':
-                filename = f"{session['username']}_{int(datetime.now().timestamp())}_{file.filename}"
+            if file and file.filename != '':
+                safe_name = os.path.basename(file.filename)
+                filename = f"{session['username']}_{int(datetime.now().timestamp())}_{safe_name}"
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
 
@@ -295,8 +312,8 @@ def logout():
     if vehicle_code in latest_locations:
         if role == 'driver' and 'driver' in latest_locations[vehicle_code]:
             del latest_locations[vehicle_code]['driver']
-        elif role == 'passenger' and 'passengers' in latest_locations[vehicle_code]:
-            latest_locations[vehicle_code]['passengers'].pop(username, None)
+        elif role == 'passenger':
+            remove_passenger_from_state(vehicle_code, username)
 
     if username and vehicle_code:
         socketio.emit('remove_user', {'username': username, 'role': role}, room=vehicle_code)
@@ -306,70 +323,83 @@ def logout():
 
 @socketio.on('join')
 def on_join(data):
-    vehicle_code = str(data.get('vehicle_code', '')).strip()
+    vehicle_code = str((data or {}).get('vehicle_code', '')).strip()
     if vehicle_code:
         join_room(vehicle_code)
         if vehicle_code in latest_locations:
             room_data = latest_locations[vehicle_code]
             if 'driver' in room_data:
                 emit('broadcast_location', room_data['driver'])
-            if 'passengers' in room_data:
-                for p_user, p_data in room_data['passengers'].items():
-                    emit('broadcast_location', p_data)
+            for p_user, p_data in room_data.get('passengers', {}).items():
+                emit('broadcast_location', p_data)
+            for p_user, att_data in room_data.get('attendance', {}).items():
+                emit('broadcast_attendance', att_data)
 
 @socketio.on('user_logout')
 def handle_user_logout(data):
-    username = data.get('username')
+    data = data or {}
+    username = (data.get('username') or '').strip()
     role = data.get('role')
     vehicle_code = str(data.get('vehicle_code', '')).strip()
     
     if vehicle_code in latest_locations:
         if role == 'driver' and 'driver' in latest_locations[vehicle_code]:
             del latest_locations[vehicle_code]['driver']
-        elif role == 'passenger' and 'passengers' in latest_locations[vehicle_code]:
-            latest_locations[vehicle_code]['passengers'].pop(username, None)
+        elif role == 'passenger':
+            remove_passenger_from_state(vehicle_code, username)
             
     if username and vehicle_code:
         emit('remove_user', {'username': username, 'role': role}, room=vehicle_code)
 
 @socketio.on('update_location')
 def handle_location(data):
+    data = data or {}
     vehicle_code = str(data.get('vehicle_code', '')).strip()
     role = data.get('role')
-    username = data.get('username')
+    username = (data.get('username') or '').strip()
     if vehicle_code and role and username:
-        if vehicle_code not in latest_locations:
-            latest_locations[vehicle_code] = {'passengers': {}}
-        
+        room_state = get_room_state(vehicle_code)
         if role == 'driver':
-            latest_locations[vehicle_code]['driver'] = data
+            room_state['driver'] = data
         elif role == 'passenger':
-            if 'passengers' not in latest_locations[vehicle_code]:
-                latest_locations[vehicle_code]['passengers'] = {}
-            latest_locations[vehicle_code]['passengers'][username] = data
+            room_state['passengers'][username] = data
             
         emit('broadcast_location', data, room=vehicle_code)
 
 @socketio.on('update_attendance')
 def handle_attendance(data):
+    data = data or {}
     vehicle_code = str(data.get('vehicle_code', '')).strip()
+    username = (data.get('username') or '').strip()
+    status = data.get('status')
     if vehicle_code:
+        if username:
+            room_state = get_room_state(vehicle_code)
+            room_state['attendance'][username] = {
+                'username': username,
+                'vehicle_code': vehicle_code,
+                'status': status
+            }
         emit('broadcast_attendance', data, room=vehicle_code)
 
 @socketio.on('complete_passenger_trip')
 def handle_complete_passenger_trip(data):
-    p_name = data.get('passenger_name')
-    v_code = data.get('vehicle_code')
+    data = data or {}
+    p_name = (data.get('passenger_name') or '').strip()
+    v_code = str(data.get('vehicle_code', '')).strip()
+
+    remove_passenger_from_state(v_code, p_name)
+
     if p_name and v_code:
-        emit('remove_user', {'username': p_name}, room=v_code)
+        emit('remove_user', {'username': p_name, 'role': 'passenger', 'reason': 'trip_completed'}, room=v_code)
 
 @socketio.on('passenger_alarm_stopped')
 def handle_passenger_alarm_stopped(data):
-    username = data.get('username')
+    data = data or {}
+    username = (data.get('username') or '').strip()
     vehicle_code = str(data.get('vehicle_code', '')).strip()
 
-    if vehicle_code in latest_locations and 'passengers' in latest_locations[vehicle_code]:
-        latest_locations[vehicle_code]['passengers'].pop(username, None)
+    remove_passenger_from_state(vehicle_code, username)
 
     if username and vehicle_code:
         emit('remove_user', {'username': username, 'role': 'passenger', 'reason': 'alarm_stopped'}, room=vehicle_code)
