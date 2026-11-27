@@ -15,11 +15,12 @@
         .status { padding: 8px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 13px; }
         .panel { background: #ffffff; padding: 10px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; }
         a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; }
-        .btn-alarm { background: #ff9800; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-test { background: #6f42c1; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-stop { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
         .btn-toggle-list { background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        #alarm-banner { background: #dc3545; color: white; padding: 12px; font-weight: bold; display: none; font-size: 16px; }
+        #alarm-banner { background: #dc3545; color: white; padding: 12px 14px; font-weight: bold; display: none; font-size: 15px; align-items: center; justify-content: space-between; gap: 10px; }
+        .btn-close-banner { background: rgba(255,255,255,0.22); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 5px; padding: 4px 10px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-close-box { background: #f1f3f5; color: #333; border: 1px solid #ddd; border-radius: 4px; padding: 2px 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
         
         .passenger-box { background: white; margin: 8px 10px; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: left; }
         .passenger-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
@@ -40,10 +41,12 @@
         <a href="/logout" class="logout" onclick="notifyLogout()">ඉවත් වන්න</a>
     </header>
 
-    <div id="alarm-banner">🚨 අවධානයයි! මගියෙකු මීටර් 500 ක් ඇතුළත සිටී!</div>
+    <div id="alarm-banner">
+        <span id="alarm-banner-text">🚨 අවධානයයි! මගියෙකු මීටර් 500 ක් ඇතුළත සිටී!</span>
+        <button type="button" class="btn-close-banner" onclick="stopAlarm()">✕ Close</button>
+    </div>
 
     <div class="panel">
-        <button id="enable-alarm-btn" class="btn-alarm" onclick="enableBackgroundAlarm()">🔔 එලාම් සක්‍රීය කරන්න</button>
         <button id="test-sound-btn" class="btn-test" onclick="previewMelody()">🎵 සවුන්ඩ් ටෙස්ට්</button>
         <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarmAndRemovePassenger()">🔕 එලාම් නවත්වන්න & මගියා ඉවත් කරන්න</button>
         <button id="toggle-list-btn" class="btn-toggle-list" onclick="togglePassengerList()">📋 ලැයිස්තුව සඟවන්න</button>
@@ -52,6 +55,7 @@
     <div class="passenger-box" id="passenger-list-container">
         <div class="passenger-header">
             <h4>👥 සම්බන්ධ වී සිටින මගීන් (<span id="passenger-count">0</span>)</h4>
+            <button type="button" class="btn-close-box" onclick="togglePassengerList()" title="Close">✕</button>
         </div>
         <div class="table-scroll-container">
             <table>
@@ -110,6 +114,26 @@
             }
             return audioCtx;
         }
+
+        async function autoArmAlarmSystem() {
+            try {
+                if ("Notification" in window && Notification.permission === "default") {
+                    await Notification.requestPermission();
+                }
+                await ensureAudioContext();
+                if ('wakeLock' in navigator) {
+                    try { await navigator.wakeLock.request('screen'); } catch (e) {}
+                }
+            } catch (e) {}
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            autoArmAlarmSystem();
+        });
+
+        document.addEventListener('pointerdown', () => {
+            autoArmAlarmSystem();
+        }, { once: false });
 
         async function playMelodyTone() {
             try {
@@ -192,25 +216,10 @@
             socket.emit('user_logout', { username: "{{ username }}", role: 'driver', vehicle_code: myVehicleCode });
         }
 
-        async function enableBackgroundAlarm() {
-            if ("Notification" in window) {
-                await Notification.requestPermission();
-            }
-            await ensureAudioContext();
-            await playMelodyTone();
-
-            if ('wakeLock' in navigator) {
-                try { await navigator.wakeLock.request('screen'); } catch (e) {}
-            }
-            document.getElementById('enable-alarm-btn').innerText = "✅ එලාම් සක්‍රීයයි";
-            document.getElementById('enable-alarm-btn').style.background = "#28a745";
-            alert("එලාම් මියුසික් ටෝන් එක සහ නොටිෆිකේෂන් සක්‍රීය විය!");
-        }
-
         function triggerAlarm(passengerName, distance) {
             currentActivePassenger = passengerName;
-            document.getElementById('alarm-banner').innerText = `🚨 මගී ${passengerName} ඔබ අසලින්ම (මීටර් ${Math.round(distance)}) සිටී!`;
-            document.getElementById('alarm-banner').style.display = "block";
+            document.getElementById('alarm-banner-text').innerText = `🚨 මගී ${passengerName} ඔබ අසලින්ම (මීටර් ${Math.round(distance)}) සිටී!`;
+            document.getElementById('alarm-banner').style.display = "flex";
             document.getElementById('stop-alarm-btn').style.display = "inline-block";
 
             if ("vibrate" in navigator) {
@@ -430,10 +439,6 @@
                 currentActivePassenger = null;
             }
         }
-
-        document.addEventListener('pointerdown', () => {
-            ensureAudioContext();
-        }, { once: false });
     </script>
 </body>
 </html>
