@@ -111,7 +111,6 @@
             return audioCtx;
         }
 
-        // පොඩි ලස්සන මියුසික් chime tone එකක් (C5 -> E5 -> G5 -> C6)
         async function playMelodyTone() {
             try {
                 const ctx = await ensureAudioContext();
@@ -249,3 +248,192 @@
         function removePassengerFromUI(pUser) {
             if (!pUser) return;
             if (passengerMarkers[pUser]) {
+                map.removeLayer(passengerMarkers[pUser]);
+                delete passengerMarkers[pUser];
+            }
+            delete alertedPassengers[pUser];
+            delete passengerAttendance[pUser];
+
+            let row = document.getElementById('row-' + pUser);
+            if (row) row.remove();
+
+            if (currentActivePassenger === pUser) {
+                currentActivePassenger = null;
+                stopAlarm();
+            }
+
+            updatePassengerListAndDistances();
+        }
+
+        function getDistanceMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const p1 = lat1 * Math.PI / 180;
+            const p2 = lat2 * Math.PI / 180;
+            const dp = (lat2 - lat1) * Math.PI / 180;
+            const dl = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        }
+
+        socket.on('connect', () => {
+            socket.emit('join', { vehicle_code: myVehicleCode, username: "{{ username }}", role: 'driver' });
+        });
+
+        function startGPSTracking() {
+            if (!("geolocation" in navigator)) {
+                document.getElementById('status').innerText = "ඔබගේ බ්‍රව්සරය GPS සඳහා සහාය නොදක්වයි.";
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => { handlePositionSuccess(pos); },
+                (err) => { console.warn("Initial GPS fallback:", err.message); },
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+            );
+
+            navigator.geolocation.watchPosition(
+                handlePositionSuccess,
+                (error) => {
+                    document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර Location (GPS) සක්‍රීය කරන්න.";
+                },
+                { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+            );
+        }
+
+        function handlePositionSuccess(position) {
+            let lat = position.coords.latitude;
+            let lng = position.coords.longitude;
+            driverCoords = [lat, lng];
+
+            if (!driverMarker) {
+                driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
+                map.setView([lat, lng], 15);
+            } else {
+                driverMarker.setLatLng([lat, lng]);
+            }
+
+            document.getElementById('status').innerText = "සජීවී ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
+
+            socket.emit('update_location', {
+                role: 'driver',
+                lat: lat,
+                lng: lng,
+                vehicle_code: myVehicleCode,
+                username: "{{ username }}"
+            });
+
+            updatePassengerListAndDistances();
+        }
+
+        startGPSTracking();
+
+        function updatePassengerListAndDistances() {
+            let tbody = document.getElementById('passenger-table-body');
+            let pNames = getAllKnownPassengers();
+            document.getElementById('passenger-count').innerText = pNames.length;
+
+            if (pNames.length === 0) {
+                tbody.innerHTML = `<tr id="empty-row"><td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td></tr>`;
+                return;
+            }
+
+            let emptyRow = document.getElementById('empty-row');
+            if (emptyRow) emptyRow.remove();
+
+            Array.from(tbody.querySelectorAll('tr[id^="row-"]')).forEach(tr => {
+                const nameFromRow = tr.id.replace(/^row-/, '');
+                if (!pNames.includes(nameFromRow)) {
+                    tr.remove();
+                }
+            });
+
+            pNames.forEach(pUser => {
+                let distText = "GPS බලාපොරොත්තුවෙන්...";
+
+                if (passengerMarkers[pUser]) {
+                    let pLatLng = passengerMarkers[pUser].getLatLng();
+                    distText = "ගණනය වෙමින්...";
+
+                    if (driverCoords) {
+                        let dist = getDistanceMeters(driverCoords[0], driverCoords[1], pLatLng.lat, pLatLng.lng);
+                        distText = dist >= 1000 ? (dist / 1000).toFixed(2) + " km" : Math.round(dist) + " m";
+
+                        if (dist <= 500 && !alertedPassengers[pUser]) {
+                            alertedPassengers[pUser] = true;
+                            triggerAlarm(pUser, dist);
+                        } else if (dist > 600) {
+                            alertedPassengers[pUser] = false;
+                        }
+                    }
+                }
+
+                let attStatus = passengerAttendance[pUser] || 'Pending';
+                let attBadge = `<span class="badge-pending">තීරණය කර නැත</span>`;
+                if (attStatus === 'Present') attBadge = `<span class="badge-present">🟢 එනවා</span>`;
+                if (attStatus === 'Absent') attBadge = `<span class="badge-absent">🔴 එන්නේ නැහැ</span>`;
+
+                let rowId = 'row-' + pUser;
+                let row = document.getElementById(rowId);
+                if (!row) {
+                    row = document.createElement('tr');
+                    row.id = rowId;
+                    tbody.appendChild(row);
+                }
+                row.innerHTML = `
+                    <td><strong>${pUser}</strong> <span class="badge-online">Online</span></td>
+                    <td><strong>${distText}</strong></td>
+                    <td>${attBadge}</td>
+                `;
+            });
+        }
+
+        socket.on('broadcast_location', (data) => {
+            if (data && data.role === 'passenger' && data.lat && data.lng) {
+                let pUser = (data.username || '').trim();
+                if (!pUser) return;
+                let pLat = parseFloat(data.lat);
+                let pLng = parseFloat(data.lng);
+                if (isNaN(pLat) || isNaN(pLng)) return;
+
+                if (!passengerMarkers[pUser]) {
+                    passengerMarkers[pUser] = L.marker([pLat, pLng], { icon: greenIcon }).addTo(map).bindPopup("මගියා: " + pUser);
+                } else {
+                    passengerMarkers[pUser].setLatLng([pLat, pLng]);
+                }
+                updatePassengerListAndDistances();
+            }
+        });
+
+        socket.on('broadcast_attendance', (data) => {
+            if (!data || !data.username) return;
+            const pUser = String(data.username).trim();
+            if (!pUser) return;
+            passengerAttendance[pUser] = data.status;
+            updatePassengerListAndDistances();
+        });
+
+        socket.on('remove_user', (data) => {
+            if (!data || !data.username) return;
+            if (data.role === 'driver') return;
+            removePassengerFromUI(String(data.username).trim());
+        });
+
+        function stopAlarmAndRemovePassenger() {
+            let targetPassenger = currentActivePassenger;
+            stopAlarm();
+            if (targetPassenger) {
+                socket.emit('complete_passenger_trip', { 
+                    passenger_name: targetPassenger, 
+                    vehicle_code: myVehicleCode 
+                });
+                removePassengerFromUI(targetPassenger);
+                currentActivePassenger = null;
+            }
+        }
+
+        document.addEventListener('pointerdown', () => {
+            ensureAudioContext();
+        }, { once: false });
+    </script>
+</body>
+</html>
