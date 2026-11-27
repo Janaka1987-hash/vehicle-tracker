@@ -6,772 +6,649 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>මගියාගේ පිටුව - Passenger Dashboard</title>
+    <title>RideSync - මගී ඩෑෂ්බෝඩ්</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; background: #f4f6f9; }
-        header { background: #28a745; color: white; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; }
-        #map { height: 68vh; min-height: 360px; width: 100%; transition: height 0.25s ease; }
-        #map.expanded { height: 84vh; }
-        .status { padding: 8px 10px; background: #e2e3e5; font-weight: bold; color: #383d41; font-size: 13px; }
-        .panel { background: #ffffff; padding: 7px 10px; display: flex; justify-content: center; gap: 6px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; font-size: 12px; }
-        .custom-km-box { background: #f8f9fa; padding: 7px 10px; display: flex; justify-content: center; gap: 6px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; font-size: 12px; }
-        .home-alarm-box { background: #eef6ff; padding: 7px 10px; display: flex; justify-content: center; gap: 6px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #cfe2ff; font-size: 12px; }
-        .custom-km-box input { width: 70px; padding: 5px 6px; border: 1px solid #ccc; border-radius: 5px; font-size: 13px; font-weight: bold; text-align: center; }
-        .btn-set-km { background: #0d6efd; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-reset-km { background: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-save-home { background: #fd7e14; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-toggle-home { background: #198754; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-clear-home { background: #dc3545; color: white; border: none; padding: 6px 8px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .info-bar { background: #ffffff; padding: 6px 10px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 12px; font-weight: bold; color: #222; border-bottom: 1px solid #e5e5e5; }
-        a.logout { color: white; background: #dc3545; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 13px; }
-        .btn-attendance-yes { background: #28a745; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 12px; }
-        .btn-attendance-no { background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 12px; }
-        .btn-attendance-yes.selected, .btn-attendance-no.selected { outline: 3px solid #ffc107; transform: scale(1.03); }
-        .btn-sound { background: #0d6efd; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-notif { background: #6f42c1; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-fit { background: #17a2b8; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-expand { background: #343a40; color: white; border: none; padding: 6px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .controls-hidden { display: none !important; }
-        .alarm-banner {
-            display: none;
-            background: #ff9800;
-            color: #111;
-            padding: 12px 15px;
-            font-weight: bold;
-            font-size: 15px;
-            border-bottom: 2px solid #e65100;
-            animation: pulseBg 0.8s infinite alternate;
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+            --accent: #f59e0b;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
         }
-        .alarm-banner.active {
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            padding: 11px 14px;
+            display: flex;
+            justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+        }
+
+        .brand-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .brand-sub {
+            font-size: 11px;
+            opacity: 0.92;
+            margin-top: 2px;
+        }
+
+        a.logout {
+            background: var(--danger);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* Header Topic Buttons Bar */
+        .topic-nav {
+            background: #ffffff;
+            padding: 8px 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 600;
+        }
+
+        .topic-btn {
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: var(--text);
+            border-radius: 10px;
+            padding: 8px 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .topic-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 2px 6px rgba(15, 118, 110, 0.25);
+        }
+
+        #alarm-banner {
+            display: none;
+            background: linear-gradient(90deg, #dc2626, #b91c1c);
+            color: #fff;
+            padding: 11px 14px;
+            font-weight: 700;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .live-strip {
+            background: var(--card);
+            margin: 10px 12px 8px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .distance-box .label {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .distance-box .value {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary-dark);
+        }
+
+        .status-text {
+            font-size: 12px;
+            color: var(--muted);
+            text-align: right;
+            line-height: 1.35;
+        }
+
+        .tab-panel {
+            display: none;
+            margin: 0 12px 14px;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .map-wrapper {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        #map {
+            height: 62vh;
+            min-height: 340px;
+            width: 100%;
+        }
+
+        .map-floating-btns {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .float-btn {
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--text);
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 7px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+
+        .float-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .card-box {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
             gap: 12px;
+        }
+
+        .card-heading {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin: 0;
+        }
+
+        .alarm-row {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .pill-on {
+            background: #dcfce7;
+            color: #166534;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        select {
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 12px;
+            font-weight: 600;
+            background: #fff;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
             flex-wrap: wrap;
         }
-        .btn-stop-alarm {
-            background: #212529;
-            color: #fff;
+
+        .btn-sound {
+            flex: 1;
+            background: var(--accent);
+            color: #0f172a;
             border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-weight: bold;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 800;
             cursor: pointer;
         }
-        @keyframes pulseBg {
-            from { background: #ffb74d; }
-            to { background: #ff5722; color: #fff; }
+
+        .btn-stop-alarm {
+            display: none;
+            flex: 1;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .attendance-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .att-btn {
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-present { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .btn-present.selected { background: var(--success); color: #fff; }
+        .btn-absent { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .btn-absent.selected { background: var(--danger); color: #fff; }
+
+        .att-note {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 0;
         }
     </style>
 </head>
 <body>
     <header>
-        <h3 style="margin:0; font-size: 15px;">{{ username }} (මගී - වාහනය: {{ vehicle_code }})</h3>
+        <div>
+            <div class="brand-title">🚐 RideSync • {{ username }}</div>
+            <div class="brand-sub">වාහනය: <strong>{{ vehicle_code }}</strong></div>
+        </div>
         <a href="/logout" class="logout" onclick="notifyLogout()">ඉවත් වන්න</a>
     </header>
 
-    <div class="panel" id="topPanel">
-        <span style="font-weight: bold;">අද ගමන:</span>
-        <button id="btnYes" class="btn-attendance-yes" onclick="sendAttendance('Present')">🟢 Present</button>
-        <button id="btnNo" class="btn-attendance-no" onclick="sendAttendance('Absent')">🔴 Absent</button>
-        <button class="btn-sound" id="soundBtn" onclick="enableAudioAlarm()">🔔 Sound ON</button>
-        <button class="btn-notif" id="notifBtn" onclick="requestNotificationPermission()">📩 Alert</button>
-        <button class="btn-fit" onclick="fitBothMarkers()">📍 සකසන්න</button>
-        <button class="btn-expand" id="expandMapBtn" onclick="toggleMapExpand()">⛶ මැප් ලොකු කරන්න</button>
+    <div class="topic-nav">
+        <button class="topic-btn active" id="tab-btn-map" onclick="switchTopic('map')">🗺️ Map</button>
+        <button class="topic-btn" id="tab-btn-alarms" onclick="switchTopic('alarms')">🔔 Alarms</button>
+        <button class="topic-btn" id="tab-btn-attendance" onclick="switchTopic('attendance')">✋ Attendance</button>
     </div>
 
-    <div class="custom-km-box" id="kmBox">
-        <label for="customKmInput"><strong>📏 KM එලාම්:</strong></label>
-        <input type="number" id="customKmInput" step="0.1" min="0.1" placeholder="උදා: 4">
-        <button class="btn-set-km" onclick="setCustomKmAlarm()">Set KM</button>
-        <button class="btn-reset-km" onclick="resetToDefaultAlarm()">Clear KM</button>
-        <span id="alarmRuleLabel" style="color: #0d6efd; font-weight: bold;">Always Active: 500m–300m</span>
+    <div id="alarm-banner">🚨 වාහනය ඔබ ළඟට පැමිණෙමින් පවතී!</div>
+
+    <div class="live-strip">
+        <div class="distance-box">
+            <div class="label">රියදුරුට ඇති දුර</div>
+            <div class="value" id="distanceDisplay">--</div>
+        </div>
+        <div class="status-text" id="statusText">
+            GPS සහ Live Connection සූදානම් කරමින්...
+        </div>
     </div>
 
-    <div class="home-alarm-box" id="homeBox">
-        <span><strong>😴 බහින තැන (500m–300m):</strong></span>
-        <button class="btn-save-home" onclick="saveCurrentAsHome()">🏠 Save</button>
-        <button class="btn-toggle-home" id="homeToggleBtn" onclick="toggleHomeAlarm()">Wake-Up: OFF</button>
-        <button class="btn-clear-home" id="homeClearBtn" onclick="clearHomeLocation()" style="display:none;">✖</button>
-        <span id="homeStatusLabel" style="color: #555; font-weight: bold;">බහින තැන සේව් කර නැත</span>
+    <!-- Topic 1: Map -->
+    <div class="tab-panel active" id="panel-map">
+        <div class="map-wrapper">
+            <div class="map-floating-btns">
+                <button class="float-btn active" id="followBtn" onclick="toggleAutoFollow()">🎯 Follow ON</button>
+                <button class="float-btn" onclick="focusDriver()">🚐 රියදුරු</button>
+            </div>
+            <div id="map"></div>
+        </div>
     </div>
 
-    <div class="info-bar">
-        <span id="distanceInfo">📏 වාහනයට: --</span>
-        <span id="etaInfo">⏱️ වේලාව: --</span>
-        <span id="homeDistInfo">🏠 ගෙදරට: --</span>
-        <span id="myAttendanceInfo">📝 තත්ත්වය: නැත</span>
+    <!-- Topic 2: Alarms -->
+    <div class="tab-panel" id="panel-alarms">
+        <div class="card-box">
+            <h4 class="card-heading">🔔 එලාම් සැකසුම්</h4>
+
+            <div class="alarm-row">
+                <span>🔔 <strong>500m–300m Proximity Alarm</strong></span>
+                <span class="pill-on">සැමවිටම සක්‍රීයයි</span>
+            </div>
+
+            <div class="alarm-row">
+                <span>📍 <strong>Custom KM Alert</strong></span>
+                <div>
+                    <input type="checkbox" id="customKmEnabled">
+                    <select id="customKmValue">
+                        <option value="1000">1.0 km</option>
+                        <option value="2000">2.0 km</option>
+                        <option value="3000">3.0 km</option>
+                        <option value="5000">5.0 km</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="alarm-row">
+                <span>🏠 <strong>Drop-off / Home Wake-Up</strong> (1km+)</span>
+                <div>
+                    <input type="checkbox" id="dropoffAlarmEnabled">
+                    <select id="dropoffTriggerMeters">
+                        <option value="300">300m ළඟදී</option>
+                        <option value="500" selected>500m ළඟදී</option>
+                        <option value="800">800m ළඟදී</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button class="btn-sound" id="enableAudioBtn" onclick="enableSoundAndWakeLock()">🔊 ශබ්දය සක්‍රීය කරන්න</button>
+                <button class="btn-stop-alarm" id="stopAlarmBtn" onclick="stopActiveAlarm()">🔕 එලාම් නවත්වන්න</button>
+            </div>
+        </div>
     </div>
 
-    <div class="alarm-banner" id="alarmBanner">
-        <span id="alarmText">🚨 අවධානයයි!</span>
-        <button class="btn-stop-alarm" onclick="stopAlarm()">🔕 Stop Alarm</button>
+    <!-- Topic 3: Attendance -->
+    <div class="tab-panel" id="panel-attendance">
+        <div class="card-box">
+            <h4 class="card-heading">✋ අද ගමනේ පැමිණීම</h4>
+            <p class="att-note">අද ගමනට එනවාද නැද්ද යන්න තෝරන්න — එය රියදුරුගේ ලැයිස්තුවට සජීවීව යැවේ.</p>
+            <div class="attendance-row">
+                <button class="att-btn btn-present" id="btnPresent" onclick="setAttendance('Present')">🟢 අද එනවා</button>
+                <button class="att-btn btn-absent" id="btnAbsent" onclick="setAttendance('Absent')">🔴 අද එන්නේ නැහැ</button>
+            </div>
+        </div>
     </div>
-
-    <div class="status" id="status">ඔබේ ජීපීඑස් ලොකේෂන් එක ලබා ගනිමින් පවතී...</div>
-    <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
-    
     <script>
-        const socket = io({ transports: ['websocket', 'polling'] });
-        let map = L.map('map').setView([7.8731, 80.7718], 13);
-        let passengerMarker = null;
-        let driverMarker = null;
-        let homeMarker = null;
-        let myVehicleCode = "{{ vehicle_code }}".trim();
-        let myUsername = "{{ username }}";
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: Infinity
+        });
 
-        let latestPassengerCoords = null;
-        let latestDriverCoords = null;
+        const myVehicleCode = "{{ vehicle_code }}".trim();
+        const myUsername = "{{ username }}";
 
-        const MAX_ALARM_DISTANCE = 500;
-        const MIN_ALARM_DISTANCE = 300;
-        let customAlarmMeters = null;
-
-        let autoBandAlarmTriggered = false;
-        let customKmAlarmTriggered = false;
-
-        let savedHomeCoords = null;
-        let homeAlarmEnabled = false;
-        let homeAlarmArmed = false;
-        let homeAlarmTriggered = false;
-
-        let alarmInterval = null;
-        let audioCtx = null;
-        let isMapExpanded = false;
-
-        const STORAGE_ATT_KEY = `ridesync_att_${myVehicleCode}_${myUsername}`;
-        const STORAGE_KM_KEY = `ridesync_custom_km_${myVehicleCode}_${myUsername}`;
-        const STORAGE_HOME_KEY = `ridesync_home_${myVehicleCode}_${myUsername}`;
-        const STORAGE_HOME_ENABLED_KEY = `ridesync_home_enabled_${myVehicleCode}_${myUsername}`;
-
+        const map = L.map('map').setView([7.8731, 80.7718], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        const greenIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41]
-        });
-
-        const redIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41]
-        });
-
-        const homeIcon = L.icon({
+        const driverIcon = L.icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41]
         });
 
-        function toggleMapExpand() {
-            isMapExpanded = !isMapExpanded;
-            const mapEl = document.getElementById('map');
-            const kmBox = document.getElementById('kmBox');
-            const homeBox = document.getElementById('homeBox');
-            const btn = document.getElementById('expandMapBtn');
+        const passengerIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+        });
 
-            if (isMapExpanded) {
-                mapEl.classList.add('expanded');
-                kmBox.classList.add('controls-hidden');
-                homeBox.classList.add('controls-hidden');
-                btn.innerText = '🗗 සාමාන්‍ය කරන්න';
-            } else {
-                mapEl.classList.remove('expanded');
-                kmBox.classList.remove('controls-hidden');
-                homeBox.classList.remove('controls-hidden');
-                btn.innerText = '⛶ මැප් ලොකු කරන්න';
-            }
+        let driverMarker = null;
+        let passengerMarker = null;
+        let driverCoords = null;
+        let passengerCoords = null;
+        let autoFollow = true;
+        let audioCtx = null;
+        let beepTimer = null;
+        let proximityTriggered = false;
+        let customKmTriggered = false;
+        let movedAway1km = false;
+        let dropoffTriggered = false;
 
-            setTimeout(() => {
-                map.invalidateSize();
-            }, 300);
-        }
-
-        function applyAttendanceUI(status) {
-            const btnYes = document.getElementById('btnYes');
-            const btnNo = document.getElementById('btnNo');
-            const info = document.getElementById('myAttendanceInfo');
-            btnYes.classList.remove('selected');
-            btnNo.classList.remove('selected');
-
-            if (status === 'Present') {
-                btnYes.classList.add('selected');
-                info.innerText = "📝 තත්ත්වය: 🟢 Present";
-            } else if (status === 'Absent') {
-                btnNo.classList.add('selected');
-                info.innerText = "📝 තත්ත්වය: 🔴 Absent";
-            } else {
-                info.innerText = "📝 තත්ත්වය: නැත";
+        function switchTopic(topicName) {
+            ['map', 'alarms', 'attendance'].forEach((t) => {
+                document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === topicName);
+                document.getElementById(`panel-${t}`).classList.toggle('active', t === topicName);
+            });
+            if (topicName === 'map') {
+                setTimeout(() => map.invalidateSize(), 150);
             }
         }
 
-        function updateAlarmRuleLabel() {
-            const label = document.getElementById('alarmRuleLabel');
-            if (customAlarmMeters && customAlarmMeters > 0) {
-                const kmVal = (customAlarmMeters / 1000).toFixed(customAlarmMeters % 1000 === 0 ? 0 : 2);
-                label.innerText = `Active: 500m–300m + ${kmVal} km`;
-                label.style.color = "#198754";
-            } else {
-                label.innerText = "Always Active: 500m–300m";
-                label.style.color = "#0d6efd";
-            }
+        function getDistanceMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const toRad = (d) => d * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        function setCustomKmAlarm() {
-            const input = document.getElementById('customKmInput');
-            const km = parseFloat(input.value);
-            if (isNaN(km) || km <= 0) {
-                alert("කරුණාකර 0 ට වැඩි කිලෝමීටර් (km) අගයක් ඇතුළත් කරන්න (උදා: 4).");
-                return;
-            }
-            customAlarmMeters = km * 1000;
-            customKmAlarmTriggered = false;
-            localStorage.setItem(STORAGE_KM_KEY, String(km));
-            updateAlarmRuleLabel();
-            unlockAudio();
-            checkProximity();
-            alert(`අමතර එලාම් දුර ${km} km ලෙස සකසන ලදී! (500m–300m එලාම් එකත් දිගටම ක්‍රියා කරයි)`);
+        function formatDist(m) {
+            if (m === null || m === undefined || isNaN(m)) return "--";
+            return m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`;
         }
 
-        function resetToDefaultAlarm() {
-            customAlarmMeters = null;
-            customKmAlarmTriggered = false;
-            document.getElementById('customKmInput').value = "";
-            localStorage.removeItem(STORAGE_KM_KEY);
-            updateAlarmRuleLabel();
-            checkProximity();
-            alert("අමතර KM ඉවත් කළා. 500m–300m එලාම් එක දිගටම ක්‍රියාත්මකයි.");
-        }
-
-        function renderHomeMarker() {
-            if (savedHomeCoords) {
-                if (!homeMarker) {
-                    homeMarker = L.marker([savedHomeCoords.lat, savedHomeCoords.lng], { icon: homeIcon })
-                        .addTo(map)
-                        .bindPopup("🏠 ඔබ බහින ස්ථානය (ගේ ගාව)");
-                } else {
-                    homeMarker.setLatLng([savedHomeCoords.lat, savedHomeCoords.lng]);
+        async function enableSoundAndWakeLock() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                if ('wakeLock' in navigator) {
+                    await navigator.wakeLock.request('screen');
                 }
-            } else if (homeMarker) {
-                map.removeLayer(homeMarker);
-                homeMarker = null;
+                const btn = document.getElementById('enableAudioBtn');
+                btn.innerText = "✅ ශබ්දය සක්‍රීයයි";
+                btn.style.background = "#86efac";
+            } catch (e) {}
+        }
+
+        function playBeepOnce() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(920, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+            } catch (e) {}
+        }
+
+        function triggerPassengerAlarm(message) {
+            document.getElementById('alarm-banner').innerText = message;
+            document.getElementById('alarm-banner').style.display = 'block';
+            document.getElementById('stopAlarmBtn').style.display = 'block';
+            if ('vibrate' in navigator) navigator.vibrate([700, 300, 700, 300, 700]);
+            playBeepOnce();
+            if (!beepTimer) {
+                beepTimer = setInterval(() => {
+                    playBeepOnce();
+                    if ('vibrate' in navigator) navigator.vibrate([500, 250]);
+                }, 1400);
             }
         }
 
-        function updateHomeAlarmUI() {
-            const toggleBtn = document.getElementById('homeToggleBtn');
-            const clearBtn = document.getElementById('homeClearBtn');
-            const statusLabel = document.getElementById('homeStatusLabel');
-
-            if (!savedHomeCoords) {
-                toggleBtn.innerText = "Wake-Up: OFF";
-                toggleBtn.style.background = "#6c757d";
-                clearBtn.style.display = "none";
-                statusLabel.innerText = "බහින තැන සේව් කර නැත";
-                statusLabel.style.color = "#555";
-                document.getElementById('homeDistInfo').innerText = "🏠 ගෙදරට: --";
-                return;
+        function stopActiveAlarm() {
+            if (beepTimer) {
+                clearInterval(beepTimer);
+                beepTimer = null;
             }
-
-            clearBtn.style.display = "inline-block";
-
-            if (homeAlarmEnabled) {
-                toggleBtn.innerText = "🔔 Wake-Up: ON";
-                toggleBtn.style.background = "#198754";
-                if (homeAlarmArmed) {
-                    statusLabel.innerText = "✅ සූදානම් (500m–300m)";
-                    statusLabel.style.color = "#198754";
-                } else {
-                    statusLabel.innerText = "⏳ 1km ඈතට ගිය පසු Arm වේ";
-                    statusLabel.style.color = "#fd7e14";
-                }
-            } else {
-                toggleBtn.innerText = "🔕 Wake-Up: OFF";
-                toggleBtn.style.background = "#6c757d";
-                statusLabel.innerText = "සේව් කර ඇත (OFF)";
-                statusLabel.style.color = "#555";
-            }
-        }
-
-        function saveCurrentAsHome() {
-            if (!latestPassengerCoords) {
-                alert("තවම ඔබේ GPS ලොකේෂන් එක ලැබී නැත. මොහොතක් රැඳී සිට නැවත උත්සාහ කරන්න.");
-                return;
-            }
-            savedHomeCoords = {
-                lat: latestPassengerCoords.lat,
-                lng: latestPassengerCoords.lng
-            };
-            homeAlarmEnabled = true;
-            homeAlarmArmed = false;
-            homeAlarmTriggered = false;
-
-            localStorage.setItem(STORAGE_HOME_KEY, JSON.stringify(savedHomeCoords));
-            localStorage.setItem(STORAGE_HOME_ENABLED_KEY, "true");
-
-            unlockAudio();
-            renderHomeMarker();
-            updateHomeAlarmUI();
-            checkHomeProximity();
-            alert("🏠 ඔබ බහින ස්ථානය (ගේ ගාව) සාර්ථකව සේව් කළා! 1km ඈතට ගිය පසු, හවස ආපහු ගේ ගාවට 500m–300m ළං වෙද්දී Wake-Up Alarm එක වදිනවා.");
-        }
-
-        function toggleHomeAlarm() {
-            if (!savedHomeCoords) {
-                alert("පළමුව ගේ ගාව ඉඳන් '🏠 Save' ඔබා බහින ස්ථානය සේව් කරන්න.");
-                return;
-            }
-            homeAlarmEnabled = !homeAlarmEnabled;
-            homeAlarmTriggered = false;
-
-            if (homeAlarmEnabled && latestPassengerCoords) {
-                const distFromHome = calculateDistanceMeters(
-                    latestPassengerCoords.lat,
-                    latestPassengerCoords.lng,
-                    savedHomeCoords.lat,
-                    savedHomeCoords.lng
-                );
-                if (distFromHome > MAX_ALARM_DISTANCE) {
-                    homeAlarmArmed = true;
-                }
-            }
-
-            localStorage.setItem(STORAGE_HOME_ENABLED_KEY, homeAlarmEnabled ? "true" : "false");
-            unlockAudio();
-            updateHomeAlarmUI();
-            checkHomeProximity();
-        }
-
-        function clearHomeLocation() {
-            savedHomeCoords = null;
-            homeAlarmEnabled = false;
-            homeAlarmArmed = false;
-            homeAlarmTriggered = false;
-            localStorage.removeItem(STORAGE_HOME_KEY);
-            localStorage.removeItem(STORAGE_HOME_ENABLED_KEY);
-            renderHomeMarker();
-            updateHomeAlarmUI();
-        }
-
-        function checkHomeProximity() {
-            if (!savedHomeCoords || !latestPassengerCoords) return;
-
-            const distToHome = calculateDistanceMeters(
-                latestPassengerCoords.lat,
-                latestPassengerCoords.lng,
-                savedHomeCoords.lat,
-                savedHomeCoords.lng
-            );
-
-            const roundedHomeDist = Math.round(distToHome);
-            const homeDistStr = roundedHomeDist >= 1000 ? `${(roundedHomeDist / 1000).toFixed(2)} km` : `${roundedHomeDist} m`;
-            document.getElementById('homeDistInfo').innerText = `🏠 ගෙදරට: ${homeDistStr}`;
-
-            if (!homeAlarmEnabled) return;
-
-            if (distToHome > 1000 && !homeAlarmArmed) {
-                homeAlarmArmed = true;
-                homeAlarmTriggered = false;
-                updateHomeAlarmUI();
-            }
-
-            if (homeAlarmArmed && distToHome <= MAX_ALARM_DISTANCE) {
-                if (!homeAlarmTriggered) {
-                    homeAlarmTriggered = true;
-                    triggerGenericAlarm(
-                        `🏠 ඇහැරෙන්න! ඔබ බහින ස්ථානයට (ගේ ගාවට) ${homeDistStr} ක් ළඟයි!`,
-                        "🏠 බහින තැන ළඟයි!"
-                    );
-                }
-            }
-        }
-
-        const savedAtt = localStorage.getItem(STORAGE_ATT_KEY);
-        if (savedAtt) applyAttendanceUI(savedAtt);
-
-        const savedKm = parseFloat(localStorage.getItem(STORAGE_KM_KEY));
-        if (!isNaN(savedKm) && savedKm > 0) {
-            customAlarmMeters = savedKm * 1000;
-            document.getElementById('customKmInput').value = savedKm;
-        }
-        updateAlarmRuleLabel();
-
-        try {
-            const rawHome = localStorage.getItem(STORAGE_HOME_KEY);
-            if (rawHome) {
-                const parsedHome = JSON.parse(rawHome);
-                if (parsedHome && typeof parsedHome.lat === 'number' && typeof parsedHome.lng === 'number') {
-                    savedHomeCoords = parsedHome;
-                    homeAlarmEnabled = localStorage.getItem(STORAGE_HOME_ENABLED_KEY) === "true";
-                    renderHomeMarker();
-                }
-            }
-        } catch (e) {}
-        updateHomeAlarmUI();
-
-        function fitBothMarkers() {
-            const points = [];
-            if (passengerMarker) points.push(passengerMarker.getLatLng());
-            if (driverMarker) points.push(driverMarker.getLatLng());
-            if (homeMarker) points.push(homeMarker.getLatLng());
-
-            if (points.length >= 2) {
-                map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
-            } else if (points.length === 1) {
-                map.setView(points[0], 15);
-            }
-        }
-
-        function requestNotificationPermission() {
-            if (!("Notification" in window)) {
-                alert("මෙම බ්‍රව්සරය Notifications සඳහා සහාය නොදක්වයි.");
-                return;
-            }
-            Notification.requestPermission().then((permission) => {
-                updateNotifButton(permission);
-                if (permission === "granted") {
-                    new Notification("RideSync Alarm Ready", {
-                        body: "රියදුරු ළං වූ විට හෝ බහින ස්ථානයට ළං වූ විට alert ලැබෙනු ඇත.",
-                        icon: "{{ url_for('static', filename='icon.png') }}"
-                    });
-                }
+            if ('vibrate' in navigator) navigator.vibrate(0);
+            document.getElementById('alarm-banner').style.display = 'none';
+            document.getElementById('stopAlarmBtn').style.display = 'none';
+            socket.emit('passenger_alarm_stopped', {
+                username: myUsername,
+                vehicle_code: myVehicleCode
             });
         }
 
-        function updateNotifButton(perm) {
-            const btn = document.getElementById('notifBtn');
-            if (!btn) return;
-            if (perm === "granted") {
-                btn.innerText = "📩 Alert ON";
-                btn.style.background = "#198754";
-            }
-        }
+        function evaluateDistanceAndAlarms() {
+            if (!driverCoords || !passengerCoords) return;
 
-        if ("Notification" in window && Notification.permission === "granted") {
-            updateNotifButton("granted");
-        }
-
-        function sendSystemNotification(title, body) {
-            if ("Notification" in window && Notification.permission === "granted") {
-                try {
-                    new Notification(title, {
-                        body: body,
-                        icon: "{{ url_for('static', filename='icon.png') }}",
-                        vibrate: [500, 200, 500, 200, 500],
-                        tag: "ridesync-proximity",
-                        renotify: true
-                    });
-                } catch (e) {}
-            }
-        }
-
-        function unlockAudio() {
-            try {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                if (!audioCtx && AudioContextClass) {
-                    audioCtx = new AudioContextClass();
-                }
-                if (audioCtx && audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                const btn = document.getElementById('soundBtn');
-                if (btn) {
-                    btn.innerText = "🔔 Sound Ready";
-                    btn.style.background = "#198754";
-                }
-            } catch (e) {}
-        }
-
-        function enableAudioAlarm() {
-            unlockAudio();
-            if ("Notification" in window && Notification.permission === "default") {
-                Notification.requestPermission().then(updateNotifButton);
-            }
-            playAlarmPattern();
-        }
-
-        document.addEventListener('click', unlockAudio, { once: true });
-        document.addEventListener('touchstart', unlockAudio, { once: true });
-
-        function playAlarmPattern() {
-            try {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                if (!audioCtx && AudioContextClass) {
-                    audioCtx = new AudioContextClass();
-                }
-                if (!audioCtx) return;
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-
-                const now = audioCtx.currentTime;
-                const tones = [0, 0.25, 0.5];
-                tones.forEach((offset) => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(950, now + offset);
-                    gain.gain.setValueAtTime(0.4, now + offset);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.2);
-
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now + offset);
-                    osc.stop(now + offset + 0.22);
-                });
-            } catch (e) {}
-        }
-
-        function triggerGenericAlarm(msg, notifTitle) {
-            const banner = document.getElementById('alarmBanner');
-            const alarmText = document.getElementById('alarmText');
-
-            alarmText.innerText = msg;
-            banner.classList.add('active');
-            document.title = msg;
-
-            sendSystemNotification(notifTitle, msg);
-
-            if ("vibrate" in navigator) {
-                try {
-                    navigator.vibrate([700, 200, 700, 200, 700]);
-                } catch (e) {}
-            }
-
-            playAlarmPattern();
-            if (!alarmInterval) {
-                alarmInterval = setInterval(() => {
-                    playAlarmPattern();
-                    if ("vibrate" in navigator) {
-                        try { navigator.vibrate([600, 200, 600]); } catch (e) {}
-                    }
-                }, 2000);
-            }
-        }
-
-        function triggerProximityAlarm(distanceMeters, reasonLabel) {
-            const roundedDist = Math.round(distanceMeters);
-            const distFormatted = roundedDist >= 1000 ? `${(roundedDist / 1000).toFixed(2)} km` : `${roundedDist} m`;
-            const msg = `🚨 රියදුරු ${distFormatted} දුරින් සිටී (${reasonLabel})!`;
-            triggerGenericAlarm(msg, "🚨 වාහනය ළඟ එනවා!");
-        }
-
-        function clearAlarmUIOnly() {
-            const banner = document.getElementById('alarmBanner');
-            banner.classList.remove('active');
-            document.title = "මගියාගේ පිටුව - Passenger Dashboard";
-            if (alarmInterval) {
-                clearInterval(alarmInterval);
-                alarmInterval = null;
-            }
-        }
-
-        function stopAlarm() {
-            clearAlarmUIOnly();
-            if (myUsername && myVehicleCode) {
-                socket.emit('passenger_alarm_stopped', {
-                    username: myUsername,
-                    vehicle_code: myVehicleCode
-                });
-            }
-        }
-
-        function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
-            const R = 6371000;
-            const toRad = (deg) => deg * (Math.PI / 180);
-            const dLat = toRad(lat2 - lat1);
-            const dLon = toRad(lon2 - lon1);
-            const a =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        function updateDistanceAndETA(distMeters) {
-            const distStr = distMeters >= 1000 ? `${(distMeters / 1000).toFixed(2)} km` : `${Math.round(distMeters)} m`;
-            document.getElementById('distanceInfo').innerText = `📏 වාහනයට: ${distStr}`;
-
-            const estSeconds = distMeters / 6.94;
-            const estMinutes = Math.max(1, Math.round(estSeconds / 60));
-            const etaStr = distMeters < 100 ? "දැන්ම පාහේ" : `විනාඩි ${estMinutes}`;
-            document.getElementById('etaInfo').innerText = `⏱️ වේලාව: ${etaStr}`;
-        }
-
-        function checkProximity() {
-            if (!latestPassengerCoords || !latestDriverCoords) return;
-
-            const dist = calculateDistanceMeters(
-                latestPassengerCoords.lat,
-                latestPassengerCoords.lng,
-                latestDriverCoords.lat,
-                latestDriverCoords.lng
+            const dist = getDistanceMeters(
+                passengerCoords[0], passengerCoords[1],
+                driverCoords[0], driverCoords[1]
             );
-            updateDistanceAndETA(dist);
+            document.getElementById('distanceDisplay').innerText = formatDist(dist);
 
-            const roundedDist = Math.round(dist);
-            const distText = roundedDist >= 1000 ? `${(roundedDist / 1000).toFixed(2)} km` : `${roundedDist} m`;
-
-            let shouldTriggerNow = false;
-            let triggerReason = "";
-
-            const inAutoBand = (dist <= MAX_ALARM_DISTANCE && dist >= MIN_ALARM_DISTANCE);
-            if (inAutoBand) {
-                if (!autoBandAlarmTriggered) {
-                    autoBandAlarmTriggered = true;
-                    shouldTriggerNow = true;
-                    triggerReason = "500m–300m කලාපය";
+            if (dist <= 500 && dist >= 300) {
+                if (!proximityTriggered) {
+                    proximityTriggered = true;
+                    triggerPassengerAlarm(`🚨 වාහනය ඔබ අසලට (${Math.round(dist)}m) පැමිණෙමින් පවතී!`);
                 }
-            } else if (dist > MAX_ALARM_DISTANCE) {
-                autoBandAlarmTriggered = false;
+            } else if (dist > 650) {
+                proximityTriggered = false;
             }
 
-            if (customAlarmMeters && customAlarmMeters > 0) {
-                const targetKm = (customAlarmMeters / 1000).toFixed(customAlarmMeters % 1000 === 0 ? 0 : 2);
-                if (dist <= customAlarmMeters && !inAutoBand) {
-                    if (!customKmAlarmTriggered) {
-                        customKmAlarmTriggered = true;
-                        shouldTriggerNow = true;
-                        triggerReason = `${targetKm} km සීමාව`;
-                    }
-                } else if (dist > customAlarmMeters) {
-                    customKmAlarmTriggered = false;
+            const customEnabled = document.getElementById('customKmEnabled').checked;
+            const customMeters = parseFloat(document.getElementById('customKmValue').value);
+            if (customEnabled && dist <= customMeters && !customKmTriggered) {
+                customKmTriggered = true;
+                triggerPassengerAlarm(`📍 ඔබ සැකසූ ${formatDist(customMeters)} දුරට වාහනය පැමිණියේය!`);
+            } else if (dist > customMeters + 300) {
+                customKmTriggered = false;
+            }
+
+            const dropoffEnabled = document.getElementById('dropoffAlarmEnabled').checked;
+            const dropoffMeters = parseFloat(document.getElementById('dropoffTriggerMeters').value);
+            if (dropoffEnabled) {
+                if (dist >= 1000) {
+                    movedAway1km = true;
+                    dropoffTriggered = false;
+                } else if (movedAway1km && dist <= dropoffMeters && !dropoffTriggered) {
+                    dropoffTriggered = true;
+                    movedAway1km = false;
+                    triggerPassengerAlarm(`🏠 ඔබේ නැවතුමට (${Math.round(dist)}m) ළඟා වෙමින් පවතී!`);
                 }
-            }
-
-            if (shouldTriggerNow) {
-                triggerProximityAlarm(dist, triggerReason);
-            }
-
-            if (inAutoBand) {
-                document.getElementById('status').innerText =
-                    `🚨 රියදුරු ${distText} දුරින් සිටී (500m–300m Alarm ක්‍රියාත්මකයි!)`;
-            } else if (dist < MIN_ALARM_DISTANCE) {
-                document.getElementById('status').innerText =
-                    `📍 රියදුරු ඉතා ළඟයි! දුර: ${distText} (300m ට අඩුයි)`;
-            } else if (customAlarmMeters && customAlarmMeters > 0) {
-                const targetKm = (customAlarmMeters / 1000).toFixed(customAlarmMeters % 1000 === 0 ? 0 : 2);
-                document.getElementById('status').innerText =
-                    `රියදුරු සජීවීව සිටී | දුර: ${distText} | Alarms: ${targetKm} km & 500m–300m`;
-            } else {
-                document.getElementById('status').innerText =
-                    `රියදුරු සජීවීව සිටී | දුර: ${distText}`;
             }
         }
 
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                unlockAudio();
-                checkProximity();
-                checkHomeProximity();
+        function updateDriverMarker(lat, lng) {
+            const pLat = parseFloat(lat);
+            const pLng = parseFloat(lng);
+            if (isNaN(pLat) || isNaN(pLng)) return;
+
+            driverCoords = [pLat, pLng];
+            const timeStr = new Date().toLocaleTimeString('si-LK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            if (!driverMarker) {
+                driverMarker = L.marker([pLat, pLng], { icon: driverIcon })
+                    .addTo(map)
+                    .bindPopup(`🚐 වාහනය (${myVehicleCode})`);
+            } else {
+                driverMarker.setLatLng([pLat, pLng]);
             }
-        });
+
+            document.getElementById('statusText').innerHTML = `🟢 රියදුරු සජීවීයි<br>Update: ${timeStr}`;
+
+            if (autoFollow) {
+                map.panTo([pLat, pLng], { animate: true });
+            }
+
+            evaluateDistanceAndAlarms();
+        }
+
+        function focusDriver() {
+            if (driverCoords) {
+                map.setView(driverCoords, 15, { animate: true });
+                if (driverMarker) driverMarker.openPopup();
+            }
+        }
+
+        function toggleAutoFollow() {
+            autoFollow = !autoFollow;
+            const btn = document.getElementById('followBtn');
+            btn.classList.toggle('active', autoFollow);
+            btn.innerText = autoFollow ? "🎯 Follow ON" : "🎯 Follow OFF";
+            if (autoFollow && driverCoords) map.panTo(driverCoords);
+        }
+
+        function setAttendance(status) {
+            document.getElementById('btnPresent').classList.toggle('selected', status === 'Present');
+            document.getElementById('btnAbsent').classList.toggle('selected', status === 'Absent');
+            socket.emit('update_attendance', {
+                username: myUsername,
+                vehicle_code: myVehicleCode,
+                status: status
+            });
+        }
 
         function notifyLogout() {
-            clearAlarmUIOnly();
-            socket.emit('user_logout', { username: myUsername, role: 'passenger', vehicle_code: myVehicleCode });
-        }
-
-        function sendAttendance(status) {
-            localStorage.setItem(STORAGE_ATT_KEY, status);
-            applyAttendanceUI(status);
-            socket.emit('update_attendance', { username: myUsername, vehicle_code: myVehicleCode, status: status });
-            alert(status === 'Present' ? "ඔබ ගමනට එකතු වන බව (Present) රියදුරුට දැන්වීය!" : "ඔබ අද පැමිණෙන්නේ නැති බව (Absent) රියදුරුට දැන්වීය!");
+            socket.emit('user_logout', {
+                username: myUsername,
+                role: 'passenger',
+                vehicle_code: myVehicleCode
+            });
         }
 
         socket.on('connect', () => {
-            socket.emit('join', { vehicle_code: myVehicleCode, username: myUsername, role: 'passenger' });
+            socket.emit('join', {
+                vehicle_code: myVehicleCode,
+                username: myUsername,
+                role: 'passenger'
+            });
+            if (passengerCoords) {
+                socket.emit('update_location', {
+                    role: 'passenger',
+                    lat: passengerCoords[0],
+                    lng: passengerCoords[1],
+                    vehicle_code: myVehicleCode,
+                    username: myUsername
+                });
+            }
         });
 
         socket.on('broadcast_location', (data) => {
-            if (!data || data.role !== 'driver') return;
-
-            let dLat = parseFloat(data.lat);
-            let dLng = parseFloat(data.lng);
-            if (isNaN(dLat) || isNaN(dLng)) return;
-
-            latestDriverCoords = { lat: dLat, lng: dLng };
-            let driverLabel = data.username ? `රියදුරු (${data.username})` : "රියදුරු (Driver)";
-
-            if (!driverMarker) {
-                driverMarker = L.marker([dLat, dLng], { icon: redIcon })
-                    .addTo(map)
-                    .bindPopup(driverLabel)
-                    .openPopup();
-            } else {
-                driverMarker.setLatLng([dLat, dLng]);
-                driverMarker.setPopupContent(driverLabel);
-            }
-
-            if (latestPassengerCoords) {
-                checkProximity();
-            } else {
-                document.getElementById('status').innerText =
-                    `රියදුරු සජීවීව සිටී (${dLat.toFixed(4)}, ${dLng.toFixed(4)})`;
+            if (data && data.role === 'driver') {
+                updateDriverMarker(data.lat, data.lng);
             }
         });
 
-        socket.on('remove_user', (data) => {
-            if (!data) return;
-
-            if (data.role === 'driver') {
-                if (driverMarker) {
-                    map.removeLayer(driverMarker);
-                    driverMarker = null;
-                }
-                latestDriverCoords = null;
-                autoBandAlarmTriggered = false;
-                customKmAlarmTriggered = false;
-                clearAlarmUIOnly();
-                document.getElementById('distanceInfo').innerText = "📏 වාහනයට: --";
-                document.getElementById('etaInfo').innerText = "⏱️ වේලාව: --";
-                document.getElementById('status').innerText = "රියදුරු දැන් Offline වී ඇත.";
-                return;
-            }
-
-            if (data.username && data.username === myUsername) {
-                autoBandAlarmTriggered = false;
-                customKmAlarmTriggered = false;
-                clearAlarmUIOnly();
-                document.getElementById('status').innerText =
-                    "✅ ඔබගේ ගමන / Alarm එක අවසන් කරන ලදී.";
-            }
-        });
-
-        function startGPSTracking() {
-            if (!("geolocation" in navigator)) {
-                document.getElementById('status').innerText = "ඔබගේ බ්‍රව්සරය GPS සඳහා සහාය නොදක්වයි.";
-                return;
-            }
-
+        if ('geolocation' in navigator) {
             navigator.geolocation.watchPosition(
-                (position) => {
-                    let lat = position.coords.latitude;
-                    let lng = position.coords.longitude;
-                    latestPassengerCoords = { lat: lat, lng: lng };
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    passengerCoords = [lat, lng];
 
                     if (!passengerMarker) {
-                        passengerMarker = L.marker([lat, lng], { icon: greenIcon }).addTo(map).bindPopup("ඔබ (මගියා)").openPopup();
-                        map.setView([lat, lng], 15);
+                        passengerMarker = L.marker([lat, lng], { icon: passengerIcon })
+                            .addTo(map)
+                            .bindPopup(`🧳 ඔබ (${myUsername})`);
+                        if (!driverCoords) {
+                            map.setView([lat, lng], 15);
+                        }
                     } else {
                         passengerMarker.setLatLng([lat, lng]);
-                    }
-
-                    checkHomeProximity();
-
-                    if (latestDriverCoords) {
-                        checkProximity();
-                    } else {
-                        document.getElementById('status').innerText = "ජීපීඑස් ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
                     }
 
                     socket.emit('update_location', {
@@ -781,15 +658,15 @@
                         vehicle_code: myVehicleCode,
                         username: myUsername
                     });
+
+                    evaluateDistanceAndAlarms();
                 },
-                (error) => {
-                    document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර Location (GPS) සක්‍රීය කරන්න.";
+                () => {
+                    document.getElementById('statusText').innerText = "⚠️ ඔබේ GPS සක්‍රීය කරන්න";
                 },
-                { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+                { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 }
             );
         }
-
-        startGPSTracking();
     </script>
 </body>
 </html>
