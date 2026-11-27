@@ -16,6 +16,7 @@
         .panel { background: #ffffff; padding: 10px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #ddd; }
         a.logout { color: white; background: #dc3545; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; }
         .btn-alarm { background: #ff9800; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-test { background: #6f42c1; color: white; border: none; padding: 8px 14px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-stop { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
         .btn-toggle-list { background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         #alarm-banner { background: #dc3545; color: white; padding: 12px; font-weight: bold; display: none; font-size: 16px; }
@@ -43,6 +44,7 @@
 
     <div class="panel">
         <button id="enable-alarm-btn" class="btn-alarm" onclick="enableBackgroundAlarm()">🔔 එලාම් සක්‍රීය කරන්න</button>
+        <button id="test-sound-btn" class="btn-test" onclick="previewMelody()">🎵 සවුන්ඩ් ටෙස්ට්</button>
         <button id="stop-alarm-btn" class="btn-stop" onclick="stopAlarmAndRemovePassenger()">🔕 එලාම් නවත්වන්න & මගියා ඉවත් කරන්න</button>
         <button id="toggle-list-btn" class="btn-toggle-list" onclick="togglePassengerList()">📋 ලැයිස්තුව සඟවන්න</button>
     </div>
@@ -98,6 +100,69 @@
             iconAnchor: [12, 41]
         });
 
+        async function ensureAudioContext() {
+            if (!audioCtx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioCtx();
+            }
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        // පොඩි ලස්සන මියුසික් chime tone එකක් (C5 -> E5 -> G5 -> C6)
+        async function playMelodyTone() {
+            try {
+                const ctx = await ensureAudioContext();
+                const now = ctx.currentTime;
+
+                const compressor = ctx.createDynamicsCompressor();
+                compressor.threshold.setValueAtTime(-10, now);
+                compressor.knee.setValueAtTime(12, now);
+                compressor.ratio.setValueAtTime(6, now);
+                compressor.connect(ctx.destination);
+
+                const masterGain = ctx.createGain();
+                masterGain.gain.setValueAtTime(1.0, now);
+                masterGain.connect(compressor);
+
+                const notes = [
+                    { freq: 523.25, offset: 0.00, dur: 0.16 },
+                    { freq: 659.25, offset: 0.16, dur: 0.16 },
+                    { freq: 783.99, offset: 0.32, dur: 0.18 },
+                    { freq: 1046.50, offset: 0.50, dur: 0.36 }
+                ];
+
+                notes.forEach((n) => {
+                    const osc = ctx.createOscillator();
+                    const noteGain = ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(n.freq, now + n.offset);
+
+                    noteGain.gain.setValueAtTime(0.001, now + n.offset);
+                    noteGain.gain.exponentialRampToValueAtTime(0.85, now + n.offset + 0.03);
+                    noteGain.gain.exponentialRampToValueAtTime(0.001, now + n.offset + n.dur);
+
+                    osc.connect(noteGain);
+                    noteGain.connect(masterGain);
+
+                    osc.start(now + n.offset);
+                    osc.stop(now + n.offset + n.dur + 0.02);
+                });
+            } catch (e) {
+                console.warn("Audio playback error:", e);
+            }
+        }
+
+        async function previewMelody() {
+            await playMelodyTone();
+            if ("vibrate" in navigator) {
+                navigator.vibrate([300, 120, 300]);
+            }
+        }
+
         function getAllKnownPassengers() {
             const names = new Set([
                 ...Object.keys(passengerMarkers),
@@ -132,16 +197,15 @@
             if ("Notification" in window) {
                 await Notification.requestPermission();
             }
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-            }
+            await ensureAudioContext();
+            await playMelodyTone();
+
             if ('wakeLock' in navigator) {
                 try { await navigator.wakeLock.request('screen'); } catch (e) {}
             }
             document.getElementById('enable-alarm-btn').innerText = "✅ එලාම් සක්‍රීයයි";
             document.getElementById('enable-alarm-btn').style.background = "#28a745";
-            alert("එලාම් සහ නොටිෆිකේෂන් සක්‍රීය විය!");
+            alert("එලාම් මියුසික් ටෝන් එක සහ නොටිෆිකේෂන් සක්‍රීය විය!");
         }
 
         function triggerAlarm(passengerName, distance) {
@@ -162,22 +226,13 @@
                 });
             }
 
+            playMelodyTone();
+
             if (!alarmInterval) {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                
                 alarmInterval = setInterval(() => {
-                    let osc = audioCtx.createOscillator();
-                    let gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.4);
+                    playMelodyTone();
                     if ("vibrate" in navigator) navigator.vibrate([600, 200]);
-                }, 1000);
+                }, 1700);
             }
         }
 
@@ -194,188 +249,3 @@
         function removePassengerFromUI(pUser) {
             if (!pUser) return;
             if (passengerMarkers[pUser]) {
-                map.removeLayer(passengerMarkers[pUser]);
-                delete passengerMarkers[pUser];
-            }
-            delete alertedPassengers[pUser];
-            delete passengerAttendance[pUser];
-
-            let row = document.getElementById('row-' + pUser);
-            if (row) row.remove();
-
-            if (currentActivePassenger === pUser) {
-                currentActivePassenger = null;
-                stopAlarm();
-            }
-
-            updatePassengerListAndDistances();
-        }
-
-        function getDistanceMeters(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const p1 = lat1 * Math.PI / 180;
-            const p2 = lat2 * Math.PI / 180;
-            const dp = (lat2 - lat1) * Math.PI / 180;
-            const dl = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
-            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-        }
-
-        socket.on('connect', () => {
-            socket.emit('join', { vehicle_code: myVehicleCode, username: "{{ username }}", role: 'driver' });
-        });
-
-        function startGPSTracking() {
-            if (!("geolocation" in navigator)) {
-                document.getElementById('status').innerText = "ඔබගේ බ්‍රව්සරය GPS සඳහා සහාය නොදක්වයි.";
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (pos) => { handlePositionSuccess(pos); },
-                (err) => { console.warn("Initial GPS fallback:", err.message); },
-                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
-            );
-
-            navigator.geolocation.watchPosition(
-                handlePositionSuccess,
-                (error) => {
-                    document.getElementById('status').innerText = "GPS දෝෂයකි! කරුණාකර Location (GPS) සක්‍රීය කරන්න.";
-                },
-                { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-            );
-        }
-
-        function handlePositionSuccess(position) {
-            let lat = position.coords.latitude;
-            let lng = position.coords.longitude;
-            driverCoords = [lat, lng];
-
-            if (!driverMarker) {
-                driverMarker = L.marker([lat, lng]).addTo(map).bindPopup("ඔබ (රියදුරු)").openPopup();
-                map.setView([lat, lng], 15);
-            } else {
-                driverMarker.setLatLng([lat, lng]);
-            }
-
-            document.getElementById('status').innerText = "සජීවී ලොකේෂන් යැවෙමින් පවතී (" + lat.toFixed(4) + ", " + lng.toFixed(4) + ")";
-
-            socket.emit('update_location', {
-                role: 'driver',
-                lat: lat,
-                lng: lng,
-                vehicle_code: myVehicleCode,
-                username: "{{ username }}"
-            });
-
-            updatePassengerListAndDistances();
-        }
-
-        startGPSTracking();
-
-        function updatePassengerListAndDistances() {
-            let tbody = document.getElementById('passenger-table-body');
-            let pNames = getAllKnownPassengers();
-            document.getElementById('passenger-count').innerText = pNames.length;
-
-            if (pNames.length === 0) {
-                tbody.innerHTML = `<tr id="empty-row"><td colspan="3" style="text-align:center; color:#777;">තවමත් මගීන් ලොග් වී නැත...</td></tr>`;
-                return;
-            }
-
-            let emptyRow = document.getElementById('empty-row');
-            if (emptyRow) emptyRow.remove();
-
-            Array.from(tbody.querySelectorAll('tr[id^="row-"]')).forEach(tr => {
-                const nameFromRow = tr.id.replace(/^row-/, '');
-                if (!pNames.includes(nameFromRow)) {
-                    tr.remove();
-                }
-            });
-
-            pNames.forEach(pUser => {
-                let distText = "GPS බලාපොරොත්තුවෙන්...";
-
-                if (passengerMarkers[pUser]) {
-                    let pLatLng = passengerMarkers[pUser].getLatLng();
-                    distText = "ගණනය වෙමින්...";
-
-                    if (driverCoords) {
-                        let dist = getDistanceMeters(driverCoords[0], driverCoords[1], pLatLng.lat, pLatLng.lng);
-                        distText = dist >= 1000 ? (dist / 1000).toFixed(2) + " km" : Math.round(dist) + " m";
-
-                        if (dist <= 500 && !alertedPassengers[pUser]) {
-                            alertedPassengers[pUser] = true;
-                            triggerAlarm(pUser, dist);
-                        } else if (dist > 600) {
-                            alertedPassengers[pUser] = false;
-                        }
-                    }
-                }
-
-                let attStatus = passengerAttendance[pUser] || 'Pending';
-                let attBadge = `<span class="badge-pending">තීරණය කර නැත</span>`;
-                if (attStatus === 'Present') attBadge = `<span class="badge-present">🟢 එනවා</span>`;
-                if (attStatus === 'Absent') attBadge = `<span class="badge-absent">🔴 එන්නේ නැහැ</span>`;
-
-                let rowId = 'row-' + pUser;
-                let row = document.getElementById(rowId);
-                if (!row) {
-                    row = document.createElement('tr');
-                    row.id = rowId;
-                    tbody.appendChild(row);
-                }
-                row.innerHTML = `
-                    <td><strong>${pUser}</strong> <span class="badge-online">Online</span></td>
-                    <td><strong>${distText}</strong></td>
-                    <td>${attBadge}</td>
-                `;
-            });
-        }
-
-        socket.on('broadcast_location', (data) => {
-            if (data && data.role === 'passenger' && data.lat && data.lng) {
-                let pUser = (data.username || '').trim();
-                if (!pUser) return;
-                let pLat = parseFloat(data.lat);
-                let pLng = parseFloat(data.lng);
-                if (isNaN(pLat) || isNaN(pLng)) return;
-
-                if (!passengerMarkers[pUser]) {
-                    passengerMarkers[pUser] = L.marker([pLat, pLng], { icon: greenIcon }).addTo(map).bindPopup("මගියා: " + pUser);
-                } else {
-                    passengerMarkers[pUser].setLatLng([pLat, pLng]);
-                }
-                updatePassengerListAndDistances();
-            }
-        });
-
-        socket.on('broadcast_attendance', (data) => {
-            if (!data || !data.username) return;
-            const pUser = String(data.username).trim();
-            if (!pUser) return;
-            passengerAttendance[pUser] = data.status;
-            updatePassengerListAndDistances();
-        });
-
-        socket.on('remove_user', (data) => {
-            if (!data || !data.username) return;
-            if (data.role === 'driver') return;
-            removePassengerFromUI(String(data.username).trim());
-        });
-
-        function stopAlarmAndRemovePassenger() {
-            let targetPassenger = currentActivePassenger;
-            stopAlarm();
-            if (targetPassenger) {
-                socket.emit('complete_passenger_trip', { 
-                    passenger_name: targetPassenger, 
-                    vehicle_code: myVehicleCode 
-                });
-                removePassengerFromUI(targetPassenger);
-                currentActivePassenger = null;
-            }
-        }
-    </script>
-</body>
-</html>
